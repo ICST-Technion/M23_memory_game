@@ -1,0 +1,24 @@
+#include <MD_Parola.h>
+#include <MD_MAX72xx.h>
+#include <SPI.h>
+
+// Define hardware type and MAX7219 matrix size
+#define HARDWARE_TYPE MD_MAX72XX::FC16_HW  // This is typical for the common MAX7219 module, change if yours is different.
+#define MAX_DEVICES 1
+#define CLK_PIN 21
+#define CS_PIN 22
+#define DATA_PIN 23
+
+// Create a new instance of the MD_Parola class
+MD_Parola parola = MD_Parola(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MAX_DEVICES);
+
+void setup() {
+  parola.begin();
+  parola.displayText("IOT", PA_CENTER, 100, 2000, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
+  parola.setIntensity(0);  // Display intensity (from 0 to 15)
+}
+
+void loop() {
+  if (parola.displayAnimate())  // If animation is finished, restart it
+    parola.displayReset();
+}
