@@ -194,7 +194,8 @@ GameState currentState = DISPLAY_SCORE;
 GameState nextState = DISPLAY_SCORE;
 
 unsigned long previousMillis = 0;
-unsigned long interval = 300;
+const unsigned long interval = 300;  // Default duration
+unsigned long ledOnDuration = 300;   // Duration for which LED will remain ON
 
 int inputIndex = 0;
 
@@ -212,7 +213,7 @@ void loop() {
       nextState = PLAY_SEQUENCE;
       break;
 
-    case PLAY_SEQUENCE:
+   case PLAY_SEQUENCE:
       if (currentMillis - previousMillis >= interval) {
           previousMillis = currentMillis;
           if (currentStepInSequence < gameIndex) {
@@ -226,7 +227,7 @@ void loop() {
       break;
 
     case LED_ON:
-      if (currentMillis - previousMillis >= 300) {
+      if (currentMillis - previousMillis >= ledOnDuration) {
         digitalWrite(ledPins[gameSequence[currentStepInSequence]], LOW);
         noTone(SPEAKER_PIN);
         previousMillis = currentMillis;
@@ -235,7 +236,7 @@ void loop() {
       break;
 
     case LED_OFF:
-      if (currentMillis - previousMillis >= 50) {
+      if (currentMillis - previousMillis >= 50) {  // The pause duration between consecutive notes
         previousMillis = currentMillis;
         currentStepInSequence++;
         nextState = PLAY_SEQUENCE;
