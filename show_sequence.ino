@@ -24,6 +24,14 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, STRIP_PIN, NEO_GRB + NEO_K
 HardwareSerial mp3Serial(2); // Use HardwareSerial 2 for ESP32
 const int buttonPins[NUM_LEDS] = {14, 27, 12, 13, 32};
 
+enum GAME_STATE{
+  PLAY,
+  READ,
+  WON,
+  LOST
+};
+
+GAME_STATE currentState  = PLAY;
 
 //global variables for buttons
 bool currentButtonStates [] = {true, true,true,true,true}; 
@@ -37,7 +45,6 @@ int currentIndex = 0;
 int readIndex = 0;
 int interval = 500;
 byte sequence[10] = {3,2,1,0,4};
-bool showing = true;
 bool isLighting = true;
 int currentSequenceLength = 1;
 void setup() {
@@ -58,21 +65,31 @@ void setup() {
 
 void loop() 
 {
-  if(showing)
-    playSequence();
-    
-  else
-  {
-    readSequence();
-  }
 
+  switch(currentState)
+  {
+    case PLAY:
+      playSequence();
+      break;
+    case READ:
+      readSequence();
+      break;
+    case WON:
+      won();
+      break;
+    case LOST:
+      gameOver();
+      break;
+    default:
+    break;
+  }
     
 }
 
 
 void playSequence()
 {
-  if(millis() > lastSignalTime + interval)
+  if(millis() > lastSignalTime + 500)
   {
     if(isLighting){
       lightLED(sequence[currentIndex]);
@@ -88,7 +105,7 @@ void playSequence()
       clearLed();
       if(currentIndex >= currentSequenceLength)
     {
-      showing = false;
+      currentState = READ;
       currentIndex = 0;
     }
     }
@@ -96,27 +113,40 @@ void playSequence()
   }
 }
 void gameOver(){
-  strip.clear();
-  playSongInFolder01(7);
-  strip.setPixelColor(0, strip.Color(0, 255,0 ));
-  strip.setPixelColor(1, strip.Color(0, 255,0 ));
-  strip.setPixelColor(2, strip.Color(0, 255,0 ));
-  strip.setPixelColor(3, strip.Color(0, 255,0 ));
-  strip.setPixelColor(4, strip.Color(0, 255,0 ));
-  strip.show();
-  delay(2000);
+  currentState = LOST;
+  int currentTime = millis();
+  if(currentTime > lastSignalTime + 800)
+  {
+    strip.clear();
+    playSongInFolder01(7);
+    strip.setPixelColor(0, strip.Color(0, 255,0 ));
+    strip.setPixelColor(1, strip.Color(0, 255,0 ));
+    strip.setPixelColor(2, strip.Color(0, 255,0 ));
+    strip.setPixelColor(3, strip.Color(0, 255,0 ));
+    strip.setPixelColor(4, strip.Color(0, 255,0 ));
+    strip.show();
+    lastSignalTime = millis() + 300;
+    currentState = PLAY;
+  }
+
 }
 
 void won(){
-  strip.clear();
-  playSongInFolder01(6);
-  strip.setPixelColor(0, strip.Color(255,0,0 ));
-  strip.setPixelColor(1, strip.Color(255,0,0 ));
-  strip.setPixelColor(2, strip.Color(255,0,0 ));
-  strip.setPixelColor(3, strip.Color(255,0,0 ));
-  strip.setPixelColor(4, strip.Color(255,0,0 ));
-  strip.show();
-  delay(2000);
+  currentState = WON;
+   int currentTime = millis();
+  if(currentTime > lastSignalTime + 900)
+  {
+    strip.clear();
+    playSongInFolder01(6);
+    strip.setPixelColor(0, strip.Color(255,0,0 ));
+    strip.setPixelColor(1, strip.Color(255,0,0 ));
+    strip.setPixelColor(2, strip.Color(255,0,0 ));
+    strip.setPixelColor(3, strip.Color(255,0,0 ));
+    strip.setPixelColor(4, strip.Color(255,0,0 ));
+    strip.show();
+    lastSignalTime = millis()+ 300;
+    currentState = PLAY;
+  }
 }
 
 void lightLEDPressed(int ledNum)
@@ -129,17 +159,23 @@ void lightLEDPressed(int ledNum)
 
 void readSequence()
 {
-  for(int button = 0; button<4 ; button++)
+  int currentTime = millis();
+  if(currentTime > lastSignalTime + 500)
   {
+    for(int button = 0; button<4 ; button++)
+    {
     bool res = handle_button(button);
     if(res)
     {
       lightLEDPressed(button);
       if(sequence[readIndex] != button )
       {
-        gameOver();
-        showing=true;
+        currentSequenceLength=0;
         readIndex=0;
+        lastSignalTime = millis();
+        playSongInFolder01(sequence[readIndex]+1);
+        gameOver();
+        
       }
       else
       {
@@ -149,17 +185,20 @@ void readSequence()
         }
         else{
           playSongInFolder01(sequence[readIndex]+1);
-          won();
           currentSequenceLength ++;
           if(currentSequenceLength > 4)
             currentSequenceLength = 0;
-          showing=true;
           readIndex=0;
+          lastSignalTime = millis();
+          won();
+          
         }
       }
     }
 
+    }
   }
+  
 }
 
 void playSignal(byte index)
@@ -187,14 +226,6 @@ void mistake() {
 void success() {
   strip.setPixelColor(0, strip.Color(255, 0, 0));
   strip.show();
-}
-
-void lightMatrixRow(int rowNum) {
-  matrix.clear(rowNum);
-  for (int i = 0; i < 8; i++) {
-    matrix.setPoint(rowNum, i, true);
-  }
-  matrix.update();
 }
 
 bool handle_button(byte button_index) { //handle a button
