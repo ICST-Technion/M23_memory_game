@@ -21,6 +21,18 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, STRIP_PIN, NEO_GRB + NEO_K
 #define MP3_SERIAL_RX 16  // Connect to MP3 board TX
 #define MP3_SERIAL_TX 17  // Connect to MP3 board RX
 
+#include "BluetoothSerial.h"
+
+#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
+#endif
+
+BluetoothSerial SerialBT;
+
+const int ledPin = 2;  // This is usually the internal LED pin for ESP32. Adjust if necessary.
+bool ledState = false; // To track the current state of the LED.
+String readBuffer = ""; // Buffer to store incoming characters to check for the "light_led" string.
+
 HardwareSerial mp3Serial(2); // Use HardwareSerial 2 for ESP32
 const int buttonPins[NUM_LEDS] = {14, 27, 12, 13, 32};
 
@@ -28,10 +40,11 @@ enum GAME_STATE{
   PLAY,
   READ,
   WON,
-  LOST
+  LOST,
+  MENU
 };
 
-GAME_STATE currentState  = PLAY;
+GAME_STATE currentState  =MENU;
 
 //global variables for buttons
 bool currentButtonStates [] = {true, true,true,true,true}; 
@@ -52,7 +65,7 @@ void setup() {
   mp3Serial.begin(9600, SERIAL_8N1, MP3_SERIAL_RX, MP3_SERIAL_TX); // Begin the secondary serial to communicate with MP3 boa
   strip.begin();
   strip.show();
-  
+  SerialBT.begin("ESP32test"); //Bluetooth device name
   parola.begin();
   parola.displayClear();
   parola.setIntensity(0);
@@ -63,11 +76,58 @@ void setup() {
   }
 }
 
+
+void checkCommand() {
+  int currentTime = millis();
+  if(currentTime > lastSignalTime + 900)
+  {
+       if (readBuffer.length() > 100) {  // Trim the buffer if it gets too long.
+    readBuffer = readBuffer.substring(readBuffer.length() - 100);
+  }
+
+  if (readBuffer.indexOf("start_game") != -1) {  // If "light_led" is found in the buffer...
+    readBuffer = "";  // Clear the buffer to avoid processing the same command multiple times.
+    currentState = PLAY;
+  }
+  }
+ 
+}
+
+/**
+void checkCommand() {
+  if (readBuffer.length() > 100) {  // Trim the buffer if it gets too long.
+    readBuffer = readBuffer.substring(readBuffer.length() - 100);
+  }
+
+  if (readBuffer.indexOf("light_led") != -1) {  // If "light_led" is found in the buffer...
+    ledState = !ledState;  // Toggle LED state
+    digitalWrite(ledPin, ledState ? HIGH : LOW);  // Turn LED on/off based on the new state
+    readBuffer = "";  // Clear the buffer to avoid processing the same command multiple times.
+  }
+}*/
 void loop() 
 {
 
   switch(currentState)
   {
+    case MENU:
+        while (Serial.available()) {
+          char c = Serial.read();
+          SerialBT.write(c);  
+          readBuffer += c;
+          checkCommand();
+        }
+
+        // Read and forward data from Bluetooth Serial to wired Serial
+        while (SerialBT.available()) {
+          char c = SerialBT.read();
+          Serial.write(c);  
+          readBuffer += c;
+          checkCommand();
+        }
+  
+      
+      break;
     case PLAY:
       playSequence();
       break;
@@ -152,6 +212,26 @@ void won(){
   }
 }
 
+void wonFin(){
+  currentState = MENU;
+   int currentTime = millis();
+  if(currentTime > lastSignalTime + 900)
+  {
+    drawSmileyFace();
+    strip.clear();
+    playSongInFolder01(6);
+    strip.setPixelColor(0, strip.Color(255,0,0 ));
+    strip.setPixelColor(1, strip.Color(255,0,0 ));
+    strip.setPixelColor(2, strip.Color(255,0,0 ));
+    strip.setPixelColor(3, strip.Color(255,0,0 ));
+    strip.setPixelColor(4, strip.Color(255,0,0 ));
+    strip.show();
+    lastSignalTime = millis()+ 300;
+    readBuffer = "";
+    currentState = MENU;
+  }
+}
+
 void lightLEDPressed(int ledNum)
 {
   strip.clear();
@@ -173,7 +253,7 @@ void readSequence()
       lightLEDPressed(button);
       if(sequence[readIndex] != button )
       {
-        currentSequenceLength=0;
+        currentSequenceLength=1;
         readIndex=0;
         lastSignalTime = millis();
         playSongInFolder01(sequence[readIndex]+1);
@@ -189,11 +269,19 @@ void readSequence()
         else{
           playSongInFolder01(sequence[readIndex]+1);
           currentSequenceLength ++;
-          if(currentSequenceLength > 4)
-            currentSequenceLength = 0;
           readIndex=0;
           lastSignalTime = millis();
-          won();
+          if(currentSequenceLength > 4)
+          {
+            currentSequenceLength = 1;
+            wonFin();
+            
+          }
+          else
+          {
+            won();
+          }
+          
           
         }
       }
@@ -316,3 +404,7 @@ void drawSquare() {
 
   matrix.update();
 }
+
+
+
+
