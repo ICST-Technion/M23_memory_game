@@ -16,6 +16,12 @@ MD_MAX72XX matrix = MD_MAX72XX(HARDWARE_TYPE, MATRIX_DATA_PIN, MATRIX_CLK_PIN, M
 #define NUM_LEDS 5
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, STRIP_PIN, NEO_GRB + NEO_KHZ800);
 
+#include <HardwareSerial.h>
+
+#define MP3_SERIAL_RX 16  // Connect to MP3 board TX
+#define MP3_SERIAL_TX 17  // Connect to MP3 board RX
+
+HardwareSerial mp3Serial(2); // Use HardwareSerial 2 for ESP32
 const int buttonPins[NUM_LEDS] = {14, 27, 12, 13, 32};
 
 
@@ -27,10 +33,16 @@ unsigned int buttonPress_counters [] = { 0 , 0 ,0,0,0}; //number of presses
 unsigned long buttonPress_last_times [] = { 0 , 0 ,0,0,0};   // last time button was pressed
 unsigned long last_press_duration= 0; //to allow accessing last press duration as global
 int lastSignalTime = 0;
-int currentSequence = 0;
+int currentIndex = 0;
+int readIndex = 0;
 int interval = 500;
-byte sequence[10] = {1,0,4,0,3,0,2,0,3,0};
+byte sequence[10] = {3,2,1,0,4};
+bool showing = true;
+bool isLighting = true;
+int currentSequenceLength = 1;
 void setup() {
+  Serial.begin(115200);  // Begin the primary serial for debugging
+  mp3Serial.begin(9600, SERIAL_8N1, MP3_SERIAL_RX, MP3_SERIAL_TX); // Begin the secondary serial to communicate with MP3 boa
   strip.begin();
   strip.show();
   
@@ -46,20 +58,108 @@ void setup() {
 
 void loop() 
 {
-  if(millis() > lastSignalTime + interval)
+  if(showing)
+    playSequence();
+    
+  else
   {
-    lightLED(sequence[currentSequence]);
-    currentSequence +=1;
-    if(currentSequence >= 10)
-      currentSequence = 0;
-    lastSignalTime = millis();
+    readSequence();
   }
+
     
 }
 
+
 void playSequence()
 {
-  
+  if(millis() > lastSignalTime + interval)
+  {
+    if(isLighting){
+      lightLED(sequence[currentIndex]);
+      playSongInFolder01(sequence[currentIndex]+1);
+    currentIndex +=1;
+    lastSignalTime = millis();
+    isLighting = false;
+    }
+    else
+    {
+      lastSignalTime = millis();
+      isLighting = true;
+      clearLed();
+      if(currentIndex >= currentSequenceLength)
+    {
+      showing = false;
+      currentIndex = 0;
+    }
+    }
+    
+  }
+}
+void gameOver(){
+  strip.clear();
+  playSongInFolder01(7);
+  strip.setPixelColor(0, strip.Color(0, 255,0 ));
+  strip.setPixelColor(1, strip.Color(0, 255,0 ));
+  strip.setPixelColor(2, strip.Color(0, 255,0 ));
+  strip.setPixelColor(3, strip.Color(0, 255,0 ));
+  strip.setPixelColor(4, strip.Color(0, 255,0 ));
+  strip.show();
+  delay(2000);
+}
+
+void won(){
+  strip.clear();
+  playSongInFolder01(6);
+  strip.setPixelColor(0, strip.Color(255,0,0 ));
+  strip.setPixelColor(1, strip.Color(255,0,0 ));
+  strip.setPixelColor(2, strip.Color(255,0,0 ));
+  strip.setPixelColor(3, strip.Color(255,0,0 ));
+  strip.setPixelColor(4, strip.Color(255,0,0 ));
+  strip.show();
+  delay(2000);
+}
+
+void lightLEDPressed(int ledNum)
+{
+  strip.clear();
+  strip.setPixelColor(ledNum, strip.Color(5, 200,160 ));
+  strip.show();
+}
+
+
+void readSequence()
+{
+  for(int button = 0; button<4 ; button++)
+  {
+    bool res = handle_button(button);
+    if(res)
+    {
+      lightLEDPressed(button);
+      if(sequence[readIndex] != button )
+      {
+        gameOver();
+        showing=true;
+        readIndex=0;
+      }
+      else
+      {
+        if(readIndex < currentSequenceLength - 1){
+          playSongInFolder01(sequence[readIndex]+1);
+          readIndex ++;
+        }
+        else{
+          playSongInFolder01(sequence[readIndex]+1);
+          won();
+          currentSequenceLength ++;
+          if(currentSequenceLength > 4)
+            currentSequenceLength = 0;
+          showing=true;
+          readIndex=0;
+        }
+      }
+    }
+
+  }
 }
 
 void playSignal(byte index)
@@ -67,23 +167,25 @@ void playSignal(byte index)
 
 }
 
+void clearLed()
+{
+  strip.clear();
+  strip.show();
+}
+
 void lightLED(int ledNum) {
   strip.clear();
-  if(ledNum!=0)
-  strip.setPixelColor(ledNum, strip.Color(0, 0, 255));
+  strip.setPixelColor(ledNum, strip.Color(0, 0,255 ));
   strip.show();
 }
 
 void mistake() {
-  strip.clear();
-  strip.setPixelColor(0, strip.Color(255, 0, 0));
+  strip.setPixelColor(0, strip.Color(0, 255, 0));
   strip.show();
 }
 
-void success(int ledNum) {
-  strip.clear();
-  if(ledNum!=0)
-  strip.setPixelColor(ledNum, strip.Color(255, 0, 0));
+void success() {
+  strip.setPixelColor(0, strip.Color(255, 0, 0));
   strip.show();
 }
 
@@ -114,5 +216,15 @@ bool handle_button(byte button_index) { //handle a button
     }
   }
   return (false);
+}
+void stopSong() {
+  byte command[] = {0x7E, 0x02, 0x16, 0xEF};
+  mp3Serial.write(command, sizeof(command));  // Send the stop command to the MP3 board
+}
+
+void playSongInFolder01(int songNumber) {
+  //stopSong();  // First, stop any currently playing song
+  byte command[] = {0x7E, 0x04, 0x42, 0x01, static_cast<byte>(songNumber), 0xEF};
+  mp3Serial.write(command, sizeof(command));  // Then, send the command to play the new song
 }
 
