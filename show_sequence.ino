@@ -213,7 +213,7 @@ void won(){
 }
 
 void wonFin(){
-  currentState = MENU;
+  currentState = WON;
    int currentTime = millis();
   if(currentTime > lastSignalTime + 900)
   {
@@ -404,7 +404,3 @@ void drawSquare() {
 
   matrix.update();
 }
-
-
-
-
