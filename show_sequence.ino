@@ -91,6 +91,7 @@ void playSequence()
 {
   if(millis() > lastSignalTime + 500)
   {
+      drawSquare();
     if(isLighting){
       lightLED(sequence[currentIndex]);
       playSongInFolder01(sequence[currentIndex]+1);
@@ -117,6 +118,7 @@ void gameOver(){
   int currentTime = millis();
   if(currentTime > lastSignalTime + 800)
   {
+    drawSadFace();
     strip.clear();
     playSongInFolder01(7);
     strip.setPixelColor(0, strip.Color(0, 255,0 ));
@@ -136,6 +138,7 @@ void won(){
    int currentTime = millis();
   if(currentTime > lastSignalTime + 900)
   {
+    drawSmileyFace();
     strip.clear();
     playSongInFolder01(6);
     strip.setPixelColor(0, strip.Color(255,0,0 ));
@@ -259,3 +262,57 @@ void playSongInFolder01(int songNumber) {
   mp3Serial.write(command, sizeof(command));  // Then, send the command to play the new song
 }
 
+
+// 1. Draws a smiley face
+void drawSmileyFace() {
+  matrix.clear();
+  // Eyes
+  matrix.setPoint(2, 2, true);
+  matrix.setPoint(2, 5, true);
+
+  // Mouth - smile
+  matrix.setPoint(5, 1, true);
+  matrix.setPoint(5, 6, true);
+  matrix.setPoint(6, 2, true);
+  matrix.setPoint(6, 3, true);
+  matrix.setPoint(6, 4, true);
+  matrix.setPoint(6, 5, true);
+
+  matrix.update();
+}
+
+// 2. Draws a sad face
+void drawSadFace() {
+  matrix.clear();
+  // Eyes
+  matrix.setPoint(2, 2, true);
+  matrix.setPoint(2, 5, true);
+
+  // Mouth - sad
+  matrix.setPoint(5, 1, true);
+  matrix.setPoint(5, 6, true);
+  matrix.setPoint(4, 2, true);
+  matrix.setPoint(4, 3, true);
+  matrix.setPoint(4, 4, true);
+  matrix.setPoint(4, 5, true);
+
+  matrix.update();
+}
+
+// 3. Draws a square
+void drawSquare() {
+  matrix.clear();
+  // Horizontal lines
+  for (int i = 0; i < 8; i++) {
+    matrix.setPoint(0, i, true);
+    matrix.setPoint(7, i, true);
+  }
+
+  // Vertical lines
+  for (int j = 0; j < 8; j++) {
+    matrix.setPoint(j, 0, true);
+    matrix.setPoint(j, 7, true);
+  }
+
+  matrix.update();
+}
