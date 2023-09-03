@@ -1,9 +1,7 @@
 import 'dart:convert';
-
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
-import 'dart:typed_data';
-
 
 void main() => runApp(MyApp());
 
@@ -27,6 +25,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   BluetoothConnection? connection;
+  int? elapsedTime; // New state variable for elapsed time
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +37,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
+            Text('Current Stage Time: ${elapsedTime ?? 'Not available'}'), // Display elapsed time
             ElevatedButton(
               onPressed: _connect,
               child: Text('Find Shimon Device'),
@@ -63,6 +63,24 @@ class _MyHomePageState extends State<MyHomePage> {
       try {
         connection = await BluetoothConnection.toAddress(selectedDevice.address);
         print('Connected to ${selectedDevice.name}');
+
+        if (connection != null) {
+          if (connection!.isConnected && connection!.input != null) {
+            connection!.input!.listen((Uint8List data) {
+              print('Data incoming: ${ascii.decode(data)}');
+              String received = ascii.decode(data).trim();
+
+              if (received.startsWith('end_game_time ')) {
+                setState(() {
+                  elapsedTime = int.tryParse(received.substring(14));
+                });
+              }
+            }).onDone(() {
+              // Handle what happens when the connection is closed
+            });
+          }
+        }
+
       } catch (e) {
         print('Error connecting: $e');
       }
@@ -127,5 +145,4 @@ class DeviceListPage extends StatelessWidget {
       ),
     );
   }
-
 }
