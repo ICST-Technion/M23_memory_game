@@ -57,6 +57,7 @@ int lastSignalTime = 0;
 int currentIndex = 0;
 int readIndex = 0;
 int interval = 500;
+unsigned long startTime;
 byte sequence[10] = {3,2,1,0,4};
 bool isLighting = true;
 int currentSequenceLength = 1;
@@ -78,19 +79,28 @@ void setup() {
 
 
 void checkCommand() {
-  int currentTime = millis();
+  unsigned long currentTime = millis();  // Correct the type for millis()
   if(currentTime > lastSignalTime + 900)
   {
-       if (readBuffer.length() > 100) {  // Trim the buffer if it gets too long.
-    readBuffer = readBuffer.substring(readBuffer.length() - 100);
-  }
+    // ... Your existing code for populating readBuffer ...
 
-  if (readBuffer.indexOf("start_game") != -1) {  // If "light_led" is found in the buffer...
-    readBuffer = "";  // Clear the buffer to avoid processing the same command multiple times.
-    currentState = PLAY;
+    if (readBuffer.length() > 100) {  // Trim the buffer if it gets too long.
+      readBuffer = readBuffer.substring(readBuffer.length() - 100);
+    }
+
+    if (readBuffer.indexOf("start_game") != -1) {  // If "start_game" is found in the buffer...
+      readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
+      clearBTBuffer();  // Flush the hardware buffer to make sure no extra characters are left
+      currentState = PLAY;
+      startTime = millis();
+    }
   }
+}
+
+void clearBTBuffer() {
+  while (SerialBT.available() > 0) {
+    char t = SerialBT.read();
   }
- 
 }
 
 /**
@@ -178,6 +188,7 @@ void gameOver(){
   int currentTime = millis();
   if(currentTime > lastSignalTime + 800)
   {
+    send_game_time();
     drawSadFace();
     strip.clear();
     playSongInFolder01(7);
@@ -198,6 +209,7 @@ void won(){
    int currentTime = millis();
   if(currentTime > lastSignalTime + 900)
   {
+    send_game_time();
     drawSmileyFace();
     strip.clear();
     playSongInFolder01(6);
@@ -215,6 +227,7 @@ void won(){
 void wonFin(){
   currentState = WON;
    int currentTime = millis();
+
   if(currentTime > lastSignalTime + 900)
   {
     drawSmileyFace();
@@ -228,7 +241,9 @@ void wonFin(){
     strip.show();
     lastSignalTime = millis()+ 300;
     readBuffer = "";
+    clearBTBuffer();
     currentState = MENU;
+    send_game_time();
   }
 }
 
@@ -348,6 +363,15 @@ void playSongInFolder01(int songNumber) {
   //stopSong();  // First, stop any currently playing song
   byte command[] = {0x7E, 0x04, 0x42, 0x01, static_cast<byte>(songNumber), 0xEF};
   mp3Serial.write(command, sizeof(command));  // Then, send the command to play the new song
+}
+
+void send_game_time() {
+  unsigned long currentTime = millis();
+  unsigned long timeElapsed = currentTime - startTime; // startTime should be set when the game starts
+  int secondsElapsed = timeElapsed / 1000;  // Convert milliseconds to seconds
+  startTime = currentTime;
+  String message = "end_game_time " + String(secondsElapsed);
+  SerialBT.println(message);
 }
 
 
