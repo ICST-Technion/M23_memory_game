@@ -1,0 +1,131 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'dart:typed_data';
+
+
+void main() => runApp(MyApp());
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Bluetooth Flutter App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: MyHomePage(),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  BluetoothConnection? connection;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Bluetooth Communication'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            ElevatedButton(
+              onPressed: _connect,
+              child: Text('Find Shimon Device'),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _sendHello,
+              child: Text('Start Shimon Game'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _connect() async {
+    BluetoothDevice? selectedDevice = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => DeviceListPage()),
+    );
+
+    if (selectedDevice != null) {
+      try {
+        connection = await BluetoothConnection.toAddress(selectedDevice.address);
+        print('Connected to ${selectedDevice.name}');
+      } catch (e) {
+        print('Error connecting: $e');
+      }
+    }
+  }
+
+  void _sendHello() {
+    if (connection != null && connection!.isConnected) {
+      Uint8List data = Uint8List.fromList(utf8.encode('start_game'));
+      connection!.output.add(data);
+      connection!.output.allSent.then((_) {
+        print('start_game');
+      });
+    } else {
+      print('Not connected');
+    }
+  }
+}
+
+class DeviceListPage extends StatelessWidget {
+  Future<List<BluetoothDevice>> _getBondedDevices() async {
+    List<BluetoothDevice> devices = [];
+    try {
+      devices = await FlutterBluetoothSerial.instance.getBondedDevices();
+    } catch (e) {
+      print('Error getting bonded devices: $e');
+    }
+    return devices;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Select Device'),
+      ),
+      body: FutureBuilder<List<BluetoothDevice>>(
+        future: _getBondedDevices(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(child: Text('No bonded devices found.'));
+          } else {
+            return ListView.builder(
+              itemCount: snapshot.data!.length,
+              itemBuilder: (context, index) {
+                BluetoothDevice device = snapshot.data![index];
+                return ListTile(
+                  title: Text(device.name ?? 'Unknown Name'),
+                  subtitle: Text(device.address ?? 'Unknown Address'),
+                  onTap: () {
+                    Navigator.pop(context, device);
+                  },
+                );
+              },
+            );
+          }
+        },
+      ),
+    );
+  }
+
+}
