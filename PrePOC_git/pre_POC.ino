@@ -103,18 +103,6 @@ void clearBTBuffer() {
   }
 }
 
-/**
-void checkCommand() {
-  if (readBuffer.length() > 100) {  // Trim the buffer if it gets too long.
-    readBuffer = readBuffer.substring(readBuffer.length() - 100);
-  }
-
-  if (readBuffer.indexOf("light_led") != -1) {  // If "light_led" is found in the buffer...
-    ledState = !ledState;  // Toggle LED state
-    digitalWrite(ledPin, ledState ? HIGH : LOW);  // Turn LED on/off based on the new state
-    readBuffer = "";  // Clear the buffer to avoid processing the same command multiple times.
-  }
-}*/
 void loop() 
 {
 
@@ -271,18 +259,18 @@ void readSequence()
         currentSequenceLength=1;
         readIndex=0;
         lastSignalTime = millis();
-        playSongInFolder01(sequence[readIndex]+1);
+        playSongInFolder01(button+1);
         gameOver();
         
       }
       else
       {
         if(readIndex < currentSequenceLength - 1){
-          playSongInFolder01(sequence[readIndex]+1);
+          playSongInFolder01(button+1);
           readIndex ++;
         }
         else{
-          playSongInFolder01(sequence[readIndex]+1);
+          playSongInFolder01(button+1);
           currentSequenceLength ++;
           readIndex=0;
           lastSignalTime = millis();
