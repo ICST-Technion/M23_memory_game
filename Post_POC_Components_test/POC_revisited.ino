@@ -14,6 +14,7 @@
 #define NUM_PINS 5
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 2
+#define MAX_GAME_SEQUENCE 100
 /******************************************************************
 ------------------------Pin Layout Section-------------------------
 *******************************************************************/
@@ -30,7 +31,18 @@ const int buttonPins[NUM_PINS] = {22, 3, 21, 1, 19};
 //notice the led matrix pins is seperated as changing the 23 pin caused some issues(this is the SPI standard pin for DATA_IN)
 #define MATRIX_CLK_PIN 18
 #define MATRIX_CS_PIN 5
-
+byte numberPatterns[10][8] = {
+  { 0x3C, 0x42, 0x42, 0x42, 0x42, 0x42, 0x3C, 0x00 },//0
+  { 0x08, 0x18, 0x08, 0x08, 0x08, 0x08, 0x3E, 0x00 },  // 1
+  { 0x3E, 0x02, 0x02, 0x3E, 0x20, 0x20, 0x3E, 0x00 },  // 2
+  { 0x3E, 0x02, 0x02, 0x3E, 0x02, 0x02, 0x3E, 0x00 },  // 3
+  { 0x22, 0x22, 0x22, 0x3E, 0x02, 0x02, 0x02, 0x00 },  // 4
+  { 0x3E, 0x20, 0x20, 0x3E, 0x02, 0x02, 0x3E, 0x00 },  // 5
+  { 0x3E, 0x20, 0x20, 0x3E, 0x22, 0x22, 0x3E, 0x00 },  // 6
+  { 0x3E, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x00 },  // 7
+  { 0x3E, 0x22, 0x22, 0x3E, 0x22, 0x22, 0x3E, 0x00 },  // 8
+  { 0x3E, 0x22, 0x22, 0x3E, 0x02, 0x02, 0x3E, 0x00 }   // 9
+};
 //UART pinout for mp3 board
 #define MP3_SERIAL_RX 16  // Connect to MP3 board TX
 #define MP3_SERIAL_TX 17  // Connect to MP3 board RX
@@ -74,10 +86,10 @@ unsigned int buttonPress_counters [] = { 0 , 0 ,0,0,0}; //number of presses
 unsigned long buttonPress_last_times [] = { 0 , 0 ,0,0,0};   // last time button was pressed
 unsigned long last_press_duration= 0; //to allow accessing last press duration as global
 int lastSignalTime = 0;
-int currentIndex = 0;
+int playIndex = 0;
 int readIndex = 0;
 unsigned long startTime;
-byte sequence[10] = {1,2,3,4,4};
+byte sequence[100] ;
 bool isLighting = true;
 int currentSequenceLength = 1;
 void setup() {
@@ -124,7 +136,7 @@ void clearBTBuffer() {
 
 void loop() 
 {
-  sound_board_bench();
+  //sound_board_bench();
   switch(currentState)
   {
     case MENU:
@@ -152,6 +164,7 @@ void loop()
       readSequence();
       break;
     case WON:
+    setVolumeMax();
       won();
       break;
     case LOST:
@@ -166,13 +179,15 @@ void loop()
 
 void playSequence()
 {
-  if(millis() > lastSignalTime + 500)
+  if(millis() > lastSignalTime +700)
   {
-      drawSquare();
+    
+      displayTwoDigitNumber(currentSequenceLength-1);
     if(isLighting){
-      lightLED(sequence[currentIndex]);
-      playSongInFolder01(sequence[currentIndex]);
-    currentIndex +=1;
+      sequence[currentSequenceLength-1] = random(1,5);
+      lightLED(sequence[playIndex]);
+      playSongInFolder01(sequence[playIndex]);
+    playIndex +=1;
     lastSignalTime = millis();
     isLighting = false;
     }
@@ -181,10 +196,10 @@ void playSequence()
       lastSignalTime = millis();
       isLighting = true;
       clearLed();
-      if(currentIndex >= currentSequenceLength)
+      if(playIndex >= currentSequenceLength)
     {
       currentState = READ;
-      currentIndex = 0;
+      playIndex = 0;
     }
     }
     
@@ -293,7 +308,7 @@ void readSequence()
           currentSequenceLength ++;
           readIndex=0;
           lastSignalTime = millis();
-          if(currentSequenceLength > 4)
+          if(currentSequenceLength > MAX_GAME_SEQUENCE)
           {
             currentSequenceLength = 1;
             wonFin();
@@ -301,7 +316,11 @@ void readSequence()
           }
           else
           {
-            won();
+            //won();
+            send_game_stage();
+            lastSignalTime = millis()+ 300;
+    currentState = PLAY;
+
           }
           
           
@@ -381,6 +400,15 @@ void send_game_time() {
   SerialBT.println(message);
 }
 
+void send_game_stage() {
+  unsigned long currentTime = millis();
+  unsigned long timeElapsed = currentTime - startTime; // startTime should be set when the game starts
+  int secondsElapsed = timeElapsed / 1000;  // Convert milliseconds to seconds
+  startTime = currentTime;
+  String message = "game_stage " + String(currentSequenceLength);
+  SerialBT.println(message);
+}
+
 
 // 1. Draws a smiley face
 void drawSmileyFace() {
@@ -436,6 +464,10 @@ void drawSquare() {
   matrix.update();
 }
 
+void setVolumeMax() {
+  byte volumeMaxCmd[] = {0x7E, 0x03, 0x31, 0x1E, 0xEF}; // Command to set volume to max (30)
+  mp3Serial.write(volumeMaxCmd, sizeof(volumeMaxCmd));  // Send the command to the mp3 module
+}
 
 void sound_board_bench()
 {
@@ -452,3 +484,30 @@ void sound_board_bench()
   }
   
 }
+
+void displayDigit(int num, int zone) {
+  if (num < 0 || num > 9) {
+    matrix.clear(zone);
+    return;
+  }
+
+  for (int row = 0; row < 8; row++) {
+    matrix.setRow(zone, row, numberPatterns[num][row]);
+  }
+}
+
+void displayTwoDigitNumber(int num) {
+  
+
+  if (num < 10) {  // If it's a single-digit number
+    matrix.clear(0);  // Clear the left matrix
+    displayDigit(num, 1);  // Display the number on the right matrix
+  } else {
+    int leftDigit = num / 10;   // Extract tens place
+    int rightDigit = num % 10; // Extract ones place
+
+    displayDigit(leftDigit, 0); // Display left digit on left matrix
+    displayDigit(rightDigit, 1); // Display right digit on right matrix
+  }
+}
+
