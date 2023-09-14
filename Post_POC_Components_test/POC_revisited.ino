@@ -3,23 +3,46 @@
 #include <SPI.h>
 #include <Adafruit_NeoPixel.h>
 #include "BluetoothSerial.h"
+#include <HardwareSerial.h>
+
+/******************************************************************
+------------------------Constants Section-------------------------
+*******************************************************************/
+
+#define STRIP_PIN 2
+#define NUM_LEDS 5
+#define NUM_PINS 5
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 2
+/******************************************************************
+------------------------Pin Layout Section-------------------------
+*******************************************************************/
+/**As the esp32, 30pin version's layout is not numbered according to position the pin numbering is confusing, even though our products connection is quite organized.
+This is the order of the pinout(all the pins are connected to the right side of the board, except the GND and VIN as 5V was needed)
+
+(From top to bottom[usb port])
+*/
 #define MATRIX_DATA_PIN 23
+//button pins order is 22,1,3,21,19
+//array's order indicates the logical order on the assembled case
+const int buttonPins[NUM_PINS] = {22, 3, 21, 1, 19};
+
+//notice the led matrix pins is seperated as changing the 23 pin caused some issues(this is the SPI standard pin for DATA_IN)
 #define MATRIX_CLK_PIN 18
 #define MATRIX_CS_PIN 5
+
+//UART pinout for mp3 board
+#define MP3_SERIAL_RX 16  // Connect to MP3 board TX
+#define MP3_SERIAL_TX 17  // Connect to MP3 board RX
+
 #define MIN_PRESS_TIME 40
 MD_Parola parola = MD_Parola(HARDWARE_TYPE, MATRIX_CS_PIN, MAX_DEVICES);
 MD_MAX72XX matrix = MD_MAX72XX(HARDWARE_TYPE, MATRIX_DATA_PIN, MATRIX_CLK_PIN, MATRIX_CS_PIN, MAX_DEVICES);
 
-#define STRIP_PIN 2
-#define NUM_LEDS 5
+//pin number 4 is skipped for easier assembly
+
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, STRIP_PIN, NEO_GRB + NEO_KHZ800);
 
-#include <HardwareSerial.h>
-
-#define MP3_SERIAL_RX 16  // Connect to MP3 board TX
-#define MP3_SERIAL_TX 17  // Connect to MP3 board RX
 
 
 
@@ -29,12 +52,9 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, STRIP_PIN, NEO_GRB + NEO_K
 
 BluetoothSerial SerialBT;
 
-const int ledPin = 2;  // This is usually the internal LED pin for ESP32. Adjust if necessary.
-bool ledState = false; // To track the current state of the LED.
 String readBuffer = ""; // Buffer to store incoming characters to check for the "light_led" string.
 
 HardwareSerial mp3Serial(2); // Use HardwareSerial 2 for ESP32
-const int buttonPins[NUM_LEDS] = {22, 1, 3, 21, 19};
 
 enum GAME_STATE{
   PLAY,
@@ -44,7 +64,7 @@ enum GAME_STATE{
   MENU
 };
 
-GAME_STATE currentState  =MENU;
+GAME_STATE currentState  =PLAY;
 
 //global variables for buttons
 bool currentButtonStates [] = {true, true,true,true,true}; 
@@ -104,7 +124,7 @@ void clearBTBuffer() {
 
 void loop() 
 {
-
+  sound_board_bench();
   switch(currentState)
   {
     case MENU:
@@ -151,7 +171,7 @@ void playSequence()
       drawSquare();
     if(isLighting){
       lightLED(sequence[currentIndex]);
-      playSongInFolder01(sequence[currentIndex]+1);
+      playSongInFolder01(sequence[currentIndex]);
     currentIndex +=1;
     lastSignalTime = millis();
     isLighting = false;
@@ -247,9 +267,9 @@ void readSequence()
   int currentTime = millis();
   if(currentTime > lastSignalTime + 500)
   {
-    for(int button = 0; button<4 ; button++)
+    for(int button = 0; button<5 ; button++)
     {
-    bool res = handle_button(button+1);
+    bool res = handle_button(button);
     if(res)
     {
       lightLEDPressed(button);
@@ -258,18 +278,18 @@ void readSequence()
         currentSequenceLength=1;
         readIndex=0;
         lastSignalTime = millis();
-        playSongInFolder01(button+1);
+        playSongInFolder01(button);
         gameOver();
         
       }
       else
       {
         if(readIndex < currentSequenceLength - 1){
-          playSongInFolder01(button+1);
+          playSongInFolder01(button);
           readIndex ++;
         }
         else{
-          playSongInFolder01(button+1);
+          playSongInFolder01(button);
           currentSequenceLength ++;
           readIndex=0;
           lastSignalTime = millis();
@@ -414,4 +434,21 @@ void drawSquare() {
   }
 
   matrix.update();
+}
+
+
+void sound_board_bench()
+{
+  while(true)
+  {
+    for(int i = 0 ;i<4 ; i++)
+    {
+      playSongInFolder01(i);
+      delay(300);
+      stopSong();
+      delay(300);
+    }
+    
+  }
+  
 }
