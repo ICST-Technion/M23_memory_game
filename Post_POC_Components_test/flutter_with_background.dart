@@ -34,12 +34,12 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       //appBar: AppBar(
       //  title: Text('Bluetooth Communication'),
-     // ),
+      // ),
       body: Stack(
         children: <Widget>[
           // Background Image
           Image.asset(
-            "assets/white.jpg", // Replace with the actual path
+            "assets/white.jpeg", // Replace with the actual path
             width: double.infinity,
             height: double.infinity,
             fit: BoxFit.cover,
@@ -50,7 +50,7 @@ class _MyHomePageState extends State<MyHomePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 Image.asset(
-                  "assets/hamsa.jpg", // Replace with the actual path
+                  "assets/ham.png", // Replace with the actual path
                   width: 200, // Set the width as needed
                   height: 200, // Set the height as needed
                 ),
@@ -138,24 +138,40 @@ class DeviceListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Select Device'),
-      ),
-      body: FutureBuilder<BluetoothDevice?>(
-        future: _getBondedDevice(context),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data == null) {
-            return Center(child: Text('No bonded devices found.'));
-          } else {
-            return Center(
-              child: Text('Selected Device: ${snapshot.data!.name}'),
-            );
-          }
-        },
+      body: Stack(
+        children: <Widget>[
+          // Background Image
+          Image.asset(
+            "assets/white.jpeg", // Change to white.jpeg
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+          ),
+
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                FutureBuilder<BluetoothDevice?>(
+                  future: _getBondedDevice(context),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    } else if (!snapshot.hasData || snapshot.data == null) {
+                      return Center(child: Text('No bonded devices found.'));
+                    } else {
+                      return Center(
+                        child: Text('Selected Device: ${snapshot.data!.name}'),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -176,41 +192,50 @@ class _EnterNameScreenState extends State<EnterNameScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Enter Your Name'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            TextField(
-              onChanged: (value) {
-                setState(() {
-                  enteredName = value;
-                });
-              },
-              decoration: InputDecoration(labelText: 'Enter Your Name'),
+      body: Stack(
+        children: <Widget>[
+          // Background Image
+          Image.asset(
+            "assets/white.jpeg", // Change to white.jpeg
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+          ),
+
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                TextField(
+                  onChanged: (value) {
+                    setState(() {
+                      enteredName = value;
+                    });
+                  },
+                  decoration: InputDecoration(labelText: 'Enter Your Name'),
+                ),
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      playerName = enteredName;
+                    });
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GameMenuScreen(
+                          playerName!,
+                          startGameCallback: () {},
+                        ),
+                      ),
+                    );
+                  },
+                  child: Text('Confirm Name'),
+                ),
+              ],
             ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  playerName = enteredName;
-                });
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => GameMenuScreen(
-                      playerName!,
-                      startGameCallback: () {},
-                    ),
-                  ),
-                );
-              },
-              child: Text('Confirm Name'),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -225,34 +250,46 @@ class GameMenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+        appBar: AppBar(
         title: Text('Hello $playerName'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            ElevatedButton(
-              onPressed: () {
-                // Call the startGameCallback to start the game
-                startGameCallback();
-              },
-              child: Text('Start Shimon Game'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                // Handle opening the settings screen here
-              },
-              child: Text('Settings'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                // Handle opening the top players screen here
-              },
-              child: Text('Top Players'),
-            ),
-          ],
         ),
+      body: Stack(
+        children: <Widget>[
+          // Background Image
+          Image.asset(
+            "assets/white.jpeg", // Change to white.jpeg
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+          ),
+
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                ElevatedButton(
+                  onPressed: () {
+                    // Call the startGameCallback to start the game
+                    startGameCallback();
+                  },
+                  child: Text('Start Shimon Game'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    // Handle opening the settings screen here
+                  },
+                  child: Text('Settings'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    // Handle opening the top players screen here
+                  },
+                  child: Text('Top Players'),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
