@@ -124,15 +124,16 @@ class DeviceListPage extends StatelessWidget {
     } catch (e) {
       print('Error getting bonded devices: $e');
     }
+    if (devices.isNotEmpty) {
+      BluetoothDevice? selectedDevice = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EnterNameScreen(devices),
+        ),
+      );
 
-    BluetoothDevice? selectedDevice = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EnterNameScreen(devices),
-      ),
-    );
-
-    return selectedDevice;
+      return selectedDevice;
+    }
   }
 
   @override
@@ -250,9 +251,9 @@ class GameMenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
+      appBar: AppBar(
         title: Text('Hello $playerName'),
-        ),
+      ),
       body: Stack(
         children: <Widget>[
           // Background Image
