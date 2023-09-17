@@ -1,0 +1,354 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+
+void main() => runApp(MyApp());
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Bluetooth Flutter App',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: MyHomePage(),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  BluetoothConnection? connection;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Bluetooth Communication'),
+      ),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: _connect,
+          child: Text('Find Device'),
+        ),
+      ),
+    );
+  }
+
+  void _connect() async {
+    BluetoothDevice? selectedDevice = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => DeviceListPage()),
+    );
+
+    if (selectedDevice != null) {
+      try {
+        connection = await BluetoothConnection.toAddress(selectedDevice.address);
+        print('Connected to ${selectedDevice.name}');
+
+        if (connection != null) {
+          final enteredName = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => EnterNameScreen()),
+          );
+
+          if (enteredName != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => CheckScreen(connection: connection!, userName: enteredName)),
+            );
+          }
+        }
+
+      } catch (e) {
+        print('Error connecting: $e');
+      }
+    }
+  }
+}
+
+class DeviceListPage extends StatelessWidget {
+  Future<List<BluetoothDevice>> _getBondedDevices() async {
+    List<BluetoothDevice> devices = [];
+    try {
+      devices = await FlutterBluetoothSerial.instance.getBondedDevices();
+    } catch (e) {
+      print('Error getting bonded devices: $e');
+    }
+    return devices;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Select Device'),
+      ),
+      body: FutureBuilder<List<BluetoothDevice>>(
+        future: _getBondedDevices(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(child: Text('No bonded devices found.'));
+          } else {
+            return ListView.builder(
+              itemCount: snapshot.data!.length,
+              itemBuilder: (context, index) {
+                BluetoothDevice device = snapshot.data![index];
+                return ListTile(
+                  title: Text(device.name ?? 'Unknown Name'),
+                  subtitle: Text(device.address ?? 'Unknown Address'),
+                  onTap: () {
+                    Navigator.pop(context, device);
+                  },
+                );
+              },
+            );
+          }
+        },
+      ),
+    );
+  }
+}
+
+class EnterNameScreen extends StatefulWidget {
+  @override
+  _EnterNameScreenState createState() => _EnterNameScreenState();
+}
+
+class _EnterNameScreenState extends State<EnterNameScreen> {
+  final TextEditingController _nameController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Enter Your Name')),
+      body: Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Column(
+          children: <Widget>[
+            TextField(
+              controller: _nameController,
+              maxLength: 15,
+              decoration: InputDecoration(labelText: 'Name'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final enteredName = _nameController.text.trim();
+                if (enteredName.length >= 2) {
+                  Navigator.pop(context, enteredName);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Name should be at least 2 characters long')),
+                  );
+                }
+              },
+              child: Text('Save Name'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CheckScreen extends StatefulWidget {
+  final BluetoothConnection connection;
+  final String userName;
+
+  CheckScreen({required this.connection, required this.userName});
+
+  @override
+  _CheckScreenState createState() => _CheckScreenState();
+}
+
+
+class _CheckScreenState extends State<CheckScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Hello, ${widget.userName}'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            ElevatedButton(
+              onPressed: _sendCheck,
+              child: Text('Send Check'),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => _showSettings(context),
+              child: Text('Settings'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _sendCheck() {
+    if (widget.connection.isConnected) {
+      Uint8List data = Uint8List.fromList(utf8.encode('check'));
+      widget.connection.output.add(data);
+      widget.connection.output.allSent.then((_) {
+        print('check sent');
+      });
+    } else {
+      print('Not connected');
+    }
+  }
+
+  void _showSettings(BuildContext context) {
+    bool isEasyMode = false;
+    String? selectedSoundSet;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Settings'),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min, // Set this to take minimum vertical space
+                children: <Widget>[
+                  SwitchListTile(
+                    title: Text('Easy Mode'),
+                    value: isEasyMode,
+                    onChanged: (bool value) {
+                      setState(() {
+                        isEasyMode = value;
+                      });
+                    },
+                  ),
+                  ListTile(
+                    title: Text('Sound Set 1'),
+                    leading: Radio(
+                      value: 'Sound Set 1',
+                      groupValue: selectedSoundSet,
+                      onChanged: (String? value) {
+                        setState(() {
+                          selectedSoundSet = value;
+                        });
+                      },
+                    ),
+                  ),
+                  ListTile(
+                    title: Text('Sound Set 2'),
+                    leading: Radio(
+                      value: 'Sound Set 2',
+                      groupValue: selectedSoundSet,
+                      onChanged: (String? value) {
+                        setState(() {
+                          selectedSoundSet = value;
+                        });
+                      },
+                    ),
+                  ),
+                  ListTile(
+                    title: Text('Sound Set 3'),
+                    leading: Radio(
+                      value: 'Sound Set 3',
+                      groupValue: selectedSoundSet,
+                      onChanged: (String? value) {
+                        setState(() {
+                          selectedSoundSet = value;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                // Implement save logic if needed
+                Navigator.of(context).pop(); // Close the settings dialog
+              },
+              child: Text('Save Settings'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+
+class SettingsDialog extends StatefulWidget {
+  @override
+  _SettingsDialogState createState() => _SettingsDialogState();
+}
+
+class _SettingsDialogState extends State<SettingsDialog> {
+  bool _easyMode = false;
+  int? _selectedSoundSet;
+
+  @override
+  Widget build(BuildContext context) {
+    return SimpleDialog(
+      title: Text('Settings'),
+      children: [
+        SwitchListTile(
+          title: Text("Easy Mode"),
+          value: _easyMode,
+          onChanged: (bool value) {
+            setState(() {
+              _easyMode = value;
+            });
+          },
+        ),
+        ListTile(
+          title: Text("Sound Set 1"),
+          leading: Radio<int>(
+            value: 1,
+            groupValue: _selectedSoundSet,
+            onChanged: (int? value) {
+              setState(() {
+                _selectedSoundSet = value;
+              });
+            },
+          ),
+        ),
+        ListTile(
+          title: Text("Sound Set 2"),
+          leading: Radio<int>(
+            value: 2,
+            groupValue: _selectedSoundSet,
+            onChanged: (int? value) {
+              setState(() {
+                _selectedSoundSet = value;
+              });
+            },
+          ),
+        ),
+        ListTile(
+          title: Text("Sound Set 3"),
+          leading: Radio<int>(
+            value: 3,
+            groupValue: _selectedSoundSet,
+            onChanged: (int? value) {
+              setState(() {
+                _selectedSoundSet = value;
+              });
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
