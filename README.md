@@ -1,4 +1,4 @@
-# IOT-Project-Group-8
+# IOT-Project-Group-8 - Shimon Game
 
 משחק זיכרון – SHIMON
 
