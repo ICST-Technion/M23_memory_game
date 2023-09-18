@@ -8,13 +8,15 @@
 /******************************************************************
 ------------------------Constants Section-------------------------
 *******************************************************************/
-
+#define MAX_PRESS_TIME 2000
 #define STRIP_PIN 2
 #define NUM_LEDS 5
 #define NUM_PINS 5
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 2
 #define MAX_GAME_SEQUENCE 100
+#define SLOW_PACE 900
+#define FAST_PACE 600
 /******************************************************************
 ------------------------Pin Layout Section-------------------------
 *******************************************************************/
@@ -76,7 +78,7 @@ enum GAME_STATE{
   MENU
 };
 
-GAME_STATE currentState  =PLAY;
+GAME_STATE currentState  =MENU;
 
 //global variables for buttons
 bool currentButtonStates [] = {true, true,true,true,true}; 
@@ -92,6 +94,19 @@ unsigned long startTime;
 byte sequence[100] ;
 bool isLighting = true;
 int currentSequenceLength = 1;
+
+//Customable settings section
+int sound_set = 1; //by default the game uses the first set
+bool is_fast = false; // defines easy mode (600 or 900)
+bool is_min_buttons;//(randomizer picks only 3 buttons if toggled)
+int color_set = 1;
+int first_led_colors[3] = {0,0,255}; //default is blue
+int second_led_colors[3] = {255,87,51}; //default is yellow
+int third_led_colors[3] = {255,0,0}; //default is red
+int fourth_led_colors[3] = {0,255,0}; //default is green
+
+
+
 void setup() {
   Serial.begin(115200);  // Begin the primary serial for debugging
   mp3Serial.begin(9600, SERIAL_8N1, MP3_SERIAL_RX, MP3_SERIAL_TX); // Begin the secondary serial to communicate with MP3 boa
@@ -108,24 +123,85 @@ void setup() {
   }
 }
 
-
-void checkCommand() {
+void offline_start()
+{
   unsigned long currentTime = millis();  // Correct the type for millis()
   if(currentTime > lastSignalTime + 900)
   {
-    // ... Your existing code for populating readBuffer ...
-
-    if (readBuffer.length() > 100) {  // Trim the buffer if it gets too long.
-      readBuffer = readBuffer.substring(readBuffer.length() - 100);
-    }
-
-    if (readBuffer.indexOf("start_game") != -1) {  // If "start_game" is found in the buffer...
-      readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
-      clearBTBuffer();  // Flush the hardware buffer to make sure no extra characters are left
       currentState = PLAY;
       startTime = millis();
-    }
   }
+}
+void checkCommand() {
+ unsigned long currentTime = millis();
+    
+    if(currentTime > lastSignalTime + 900) {
+        lastSignalTime = currentTime;
+        
+        // If the buffer is too long, trim it.
+        if (readBuffer.length() > 100) {
+            readBuffer = readBuffer.substring(readBuffer.length() - 100);
+        }
+        
+        // Check if buffer contains the command "start_game_"
+        int commandIndex = readBuffer.indexOf("start_game_");
+        
+        if (commandIndex != -1) {
+            // Extract the command from the buffer
+            String command = readBuffer.substring(commandIndex);
+            
+            // Tokenize the command using underscore as a delimiter
+            int numTokens = 5;  // "start_game", A, B, C, D
+            String tokens[numTokens];
+            
+            for (int i = 0; i < numTokens; i++) {
+                int underscoreIndex = command.indexOf('_');
+                
+                if (underscoreIndex != -1) {
+                    tokens[i] = command.substring(0, underscoreIndex);
+                    command = command.substring(underscoreIndex + 1);
+                } else {
+                    tokens[i] = command;
+                }
+            }
+
+            // Evaluate the tokens
+            if (tokens[1] == "fast_mode") {
+                is_fast = true;
+            } else if (tokens[1] == "slow_mode") {
+                is_fast = false;
+            }
+
+            if (tokens[2] == "3_lights") {
+                is_min_buttons = true;
+            } else if (tokens[2] == "4_lights") {
+                is_min_buttons = false;
+            }
+
+            if (tokens[3] == "sound_set_1") {
+                sound_set = 1;
+            } else if (tokens[3] == "sound_set_2") {
+                sound_set = 2;
+            } else if (tokens[3] == "sound_set_const") {
+                sound_set = 3;
+            }
+
+            if (tokens[4] == "color_set_1") {
+                color_set = 1;
+            } else if (tokens[4] == "color_set_2") {
+                color_set = 2;
+            } else if (tokens[4] == "color_set_3") {
+                color_set = 3;
+            }
+
+            // Clear the buffer to avoid re-processing
+            readBuffer = "";
+            clearBTBuffer();
+
+            currentState = PLAY;
+            startTime = millis();
+        }
+    }
 }
 
 void clearBTBuffer() {
@@ -154,6 +230,9 @@ void loop()
           readBuffer += c;
           checkCommand();
         }
+
+        if(handle_button(0))
+          offline_start();
   
       
       break;
@@ -184,9 +263,9 @@ void playSequence()
     
       displayTwoDigitNumber(currentSequenceLength-1);
     if(isLighting){
-      sequence[currentSequenceLength-1] = random(1,5);
+      sequence[currentSequenceLength-1] = next_led();
       lightLED(sequence[playIndex]);
-      playSongInFolder01(sequence[playIndex]);
+      playSongInFolder(sound_set,sequence[playIndex]);
     playIndex +=1;
     lastSignalTime = millis();
     isLighting = false;
@@ -213,7 +292,7 @@ void gameOver(){
     send_game_time();
     drawSadFace();
     strip.clear();
-    playSongInFolder01(7);
+    playSongInFolder(sound_set,7);
     strip.setPixelColor(0, strip.Color(0, 255,0 ));
     strip.setPixelColor(1, strip.Color(0, 255,0 ));
     strip.setPixelColor(2, strip.Color(0, 255,0 ));
@@ -234,7 +313,7 @@ void won(){
     send_game_time();
     drawSmileyFace();
     strip.clear();
-    playSongInFolder01(6);
+    playSongInFolder(sound_set,6);
     strip.setPixelColor(0, strip.Color(255,0,0 ));
     strip.setPixelColor(1, strip.Color(255,0,0 ));
     strip.setPixelColor(2, strip.Color(255,0,0 ));
@@ -254,7 +333,7 @@ void wonFin(){
   {
     drawSmileyFace();
     strip.clear();
-    playSongInFolder01(6);
+    playSongInFolder(sound_set,6);
     strip.setPixelColor(0, strip.Color(255,0,0 ));
     strip.setPixelColor(1, strip.Color(255,0,0 ));
     strip.setPixelColor(2, strip.Color(255,0,0 ));
@@ -287,24 +366,25 @@ void readSequence()
     bool res = handle_button(button);
     if(res)
     {
-      lightLEDPressed(button);
+      lightLED(button);
+      //lightLEDPressed(button);
       if(sequence[readIndex] != button )
       {
         currentSequenceLength=1;
         readIndex=0;
         lastSignalTime = millis();
-        playSongInFolder01(button);
+        playSongInFolder(sound_set,button);
         gameOver();
         
       }
       else
       {
         if(readIndex < currentSequenceLength - 1){
-          playSongInFolder01(button);
+          playSongInFolder(sound_set,button);
           readIndex ++;
         }
         else{
-          playSongInFolder01(button);
+          playSongInFolder(sound_set,button);
           currentSequenceLength ++;
           readIndex=0;
           lastSignalTime = millis();
@@ -346,7 +426,27 @@ void clearLed()
 
 void lightLED(int ledNum) {
   strip.clear();
-  strip.setPixelColor(ledNum, strip.Color(0, 0,255 ));
+  switch(ledNum)
+  {
+    case 1:
+    strip.setPixelColor(ledNum, strip.Color(first_led_colors[0], first_led_colors[1],first_led_colors[2] ));
+    break;
+    case 2:
+    strip.setPixelColor(ledNum, strip.Color(second_led_colors[0], second_led_colors[1],second_led_colors[2] ));
+    break;
+    case 3:
+    strip.setPixelColor(ledNum, strip.Color(third_led_colors[0], third_led_colors[1],third_led_colors[2] ));
+    break;
+    case 4:
+    strip.setPixelColor(ledNum, strip.Color(fourth_led_colors[0], fourth_led_colors[1],fourth_led_colors[2] ));
+    break;
+    //this is the control led
+    strip.setPixelColor(ledNum, strip.Color(0,255,0));
+    default:
+
+    break;
+  }
+  
   strip.show();
 }
 
@@ -385,11 +485,18 @@ void stopSong() {
   mp3Serial.write(command, sizeof(command));  // Send the stop command to the MP3 board
 }
 
-void playSongInFolder01(int songNumber) {
-  //stopSong();  // First, stop any currently playing song
-  byte command[] = {0x7E, 0x04, 0x42, 0x01, static_cast<byte>(songNumber), 0xEF};
-  mp3Serial.write(command, sizeof(command));  // Then, send the command to play the new song
+void playSongInFolder(int folderNumber, int songNumber) {
+    if (folderNumber < 1 || folderNumber > 99 || songNumber < 0 || songNumber > 255) {
+        // Add error handling for invalid folder or song numbers, if desired
+        return;
+    }
+    
+    //stopSong();  // First, stop any currently playing song
+
+    byte command[] = {0x7E, 0x04, 0x42, static_cast<byte>(folderNumber), static_cast<byte>(songNumber), 0xEF};
+    mp3Serial.write(command, sizeof(command));  // Send the command to play the new song
 }
+
 
 void send_game_time() {
   unsigned long currentTime = millis();
@@ -475,7 +582,7 @@ void sound_board_bench()
   {
     for(int i = 0 ;i<4 ; i++)
     {
-      playSongInFolder01(i);
+     // playSongInFolder01(i);
       delay(300);
       stopSong();
       delay(300);
@@ -509,5 +616,13 @@ void displayTwoDigitNumber(int num) {
     displayDigit(leftDigit, 0); // Display left digit on left matrix
     displayDigit(rightDigit, 1); // Display right digit on right matrix
   }
+}
+
+int next_led()
+{
+  if(is_min_buttons)
+    return random(1,4);
+  else
+    return random(1,5);
 }
 
