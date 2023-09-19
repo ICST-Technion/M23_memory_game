@@ -267,30 +267,28 @@ void checkCommand() {
           is_min_buttons = false;
          
       }
-      if (message.indexOf("color_set_1") != -1){
+      if (message.indexOf("sound_set_1") != -1){
+          sound_set = 1;
+      }
+       if (message.indexOf("sound_set_2") != -1){
+          sound_set = 2;
+      }
+      if (message.indexOf("sound_set_const") != -1){
+          sound_set = 3;
+      }
+            if (message.indexOf("color_set_1") != -1){
           color_set = 1;
           readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
+          clearBTBuffer();
       }
        if (message.indexOf("color_set_2") != -1){
           color_set = 2;
           readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times. 
+          clearBTBuffer();
+
       }
        if (message.indexOf("color_set_3") != -1){
           color_set = 3;
-          readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
-      }
-      if (message.indexOf("sound_set_1") != -1){
-          sound_set = 1;
-          readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
-          clearBTBuffer();
-      }
-       if (message.indexOf("sound_set_2") != -1){
-          sound_set = 2;
-          readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
-          clearBTBuffer();
-      }
-      if (message.indexOf("sound_set_const") != -1){
-          sound_set = 3;
           readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
           clearBTBuffer();
       }
@@ -492,6 +490,12 @@ void lightLED(int ledNum) {
   strip.show();
 }
 
+void lightControlLedBT()
+{
+  strip.setPixelColor(0, strip.Color(0, 0,255));
+  strip.show();
+}
+
 void mistake() {
   strip.setPixelColor(0, strip.Color(0, 255, 0));
   strip.show();
@@ -675,6 +679,7 @@ void read_button_method(int button)
     {
       last_read_press = millis();
       lightLED(button);
+
       if(sequence[readIndex] != button )
       {
         currentSequenceLength=1;
@@ -739,6 +744,10 @@ bool check_multiple_buttons_pressed()
 
 void loop() 
 {
+   if (SerialBT.connected() && currentState!= LOST)
+   {
+     lightControlLedBT();
+   }
   check_full_reset();
   //sound_board_bench();
   switch(currentState)
