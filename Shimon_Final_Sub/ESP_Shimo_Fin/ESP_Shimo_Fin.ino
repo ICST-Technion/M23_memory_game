@@ -15,8 +15,8 @@
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 2
 #define MAX_GAME_SEQUENCE 100
-#define SLOW_PACE 1100
-#define FAST_PACE 700
+#define SLOW_PACE 1000
+#define FAST_PACE 400
 #define PRESS_BLINK_DURATION 400
 #define RESET_INTERVAL 400
 /******************************************************************
@@ -203,7 +203,7 @@ void setup() {
   mp3Serial.begin(9600, SERIAL_8N1, MP3_SERIAL_RX, MP3_SERIAL_TX); // Begin the secondary serial to communicate with MP3 boa
   strip.begin();
   strip.show();
-  SerialBT.begin("ESP32test"); //Bluetooth device name
+  SerialBT.begin("ESP32_Shimon"); //Bluetooth device name
   parola.begin();
   parola.displayClear();
   parola.setIntensity(15);
@@ -251,8 +251,6 @@ void checkCommand() {
     else
     {
       String message =readBuffer;
-      //readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
-      //clearBTBuffer();  // Read the received message
       if (message.indexOf("slow_mode") != -1){
           is_fast = false;
           
@@ -274,26 +272,32 @@ void checkCommand() {
       if (message.indexOf("color_set_1") != -1){
           color_set = 1;
           readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
-          clearBTBuffer();
       }
       if (message.indexOf("color_set_2") != -1){
           color_set = 2;
-          readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
-          clearBTBuffer();
+          readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times. 
       }
       if (message.indexOf("color_set_3") != -1){
           color_set = 3;
           readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
+      }
+      if (message.indexOf("sound_set_1") != -1){
+          sound_set = 1;
+          readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
           clearBTBuffer();
       }
-      //displayTwoDigitNumber(color_set);
+      if (message.indexOf("sound_set_2") != -1){
+          sound_set = 2;
+          readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
+          clearBTBuffer();
+      }
+      if (message.indexOf("sound_set_const") != -1){
+          sound_set = 3;
+          readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
+          clearBTBuffer();
+      }
       set_color_set(color_set);
-      // if(color_set == 3){
-      //   drawSadFace();
-      // }
-      // if(color_set == 2){
-      
-      // }
+     
    
     }
   }
@@ -565,6 +569,11 @@ void send_game_stage() {
   SerialBT.println(message);
 }
 
+void send_reset() {
+  String message = "reset";
+  SerialBT.println(message);
+}
+
 
 
 
@@ -626,6 +635,7 @@ void resetGame()
   playIndex = 0;
   readIndex = 0;
   currentSequenceLength = 1;
+  send_reset();
   int currentTime = millis();
   
 
