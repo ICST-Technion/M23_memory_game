@@ -92,6 +92,8 @@ unsigned long last_press_duration= 0; //to allow accessing last press duration a
 unsigned long last_read_press = 0;
 bool fin_press_cleared = false;
 bool toggle_reset = false;
+bool toggle_text = false;
+bool wating_correct_button_approval = false;
 int lastSignalTime = 0;
 int playIndex = 0;
 int readIndex = 0;
@@ -111,6 +113,90 @@ int third_led_colors[3] = {255,0,0}; //default is red
 int fourth_led_colors[3] = {0,255,0}; //default is green
 
 
+int next_led()
+{
+  if(is_min_buttons)
+    return random(1,4);
+  else
+    return random(1,5);
+}
+
+void set_color_set_1()
+{
+    first_led_colors[0] = 0;      // Blue
+    first_led_colors[1] = 0;
+    first_led_colors[2] = 255;
+    
+    second_led_colors[0] = 255;  // Yellow
+    second_led_colors[1] = 87;
+    second_led_colors[2] = 51;
+    
+    third_led_colors[0] = 255;   // Red
+    third_led_colors[1] = 0;
+    third_led_colors[2] = 0;
+    
+    fourth_led_colors[0] = 0;    // Green
+    fourth_led_colors[1] = 255;
+    fourth_led_colors[2] = 0;
+}
+
+void set_color_set_2()
+{
+    first_led_colors[0] = 239;   // Purple
+    first_led_colors[1] = 0;
+    first_led_colors[2] = 255;
+    
+    second_led_colors[0] = 255;  // Orange
+    second_led_colors[1] = 111;
+    second_led_colors[2] = 0;
+    
+    third_led_colors[0] = 255;   // Pink
+    third_led_colors[1] = 0;
+    third_led_colors[2] = 179;
+    
+    fourth_led_colors[0] = 139;  // Brown
+    fourth_led_colors[1] = 69;
+    fourth_led_colors[2] = 19;
+}
+
+void set_color_set_3()
+{
+    first_led_colors[0] = 0;     // Cyan
+    first_led_colors[1] = 255;
+    first_led_colors[2] = 247;
+    
+    second_led_colors[0] = 255;  // Red
+    second_led_colors[1] = 0;
+    second_led_colors[2] = 68;
+    
+    third_led_colors[0] = 239;   // Purple
+    third_led_colors[1] = 0;
+    third_led_colors[2] = 255;
+    
+    fourth_led_colors[0] = 255;  // Yellow
+    fourth_led_colors[1] = 87;
+    fourth_led_colors[2] = 51;
+}
+
+
+void set_color_set(int set)
+{
+  switch(set)
+  {
+    case 1:
+    set_color_set_1();
+    break;
+    case 2:
+    set_color_set_2();
+    break;
+    case 3:
+    set_color_set_3();
+    break;
+    default:
+    break;
+
+  }
+}
 
 void setup() {
   Serial.begin(115200);  // Begin the primary serial for debugging
@@ -120,8 +206,7 @@ void setup() {
   SerialBT.begin("ESP32test"); //Bluetooth device name
   parola.begin();
   parola.displayClear();
-  parola.setIntensity(0);
-  matrix.begin();
+  parola.setIntensity(15);
 
   for (int i = 0; i < NUM_LEDS; i++) {
     pinMode(buttonPins[i], INPUT_PULLUP);
@@ -170,7 +255,7 @@ void checkCommand() {
       //clearBTBuffer();  // Read the received message
       if (message.indexOf("slow_mode") != -1){
           is_fast = false;
-          //drawSmileyFace();
+          
       }
       if (message.indexOf("fast_mode") != -1){
           is_fast = true;
@@ -178,7 +263,7 @@ void checkCommand() {
       }
       if (message.indexOf("3_lights") != -1){
           is_min_buttons = true;
-          //drawSmileyFace();
+         
       }
       if (message.indexOf("4_lights") != -1){
           is_min_buttons = false;
@@ -207,7 +292,7 @@ void checkCommand() {
       //   drawSadFace();
       // }
       // if(color_set == 2){
-      //   drawSmileyFace();
+      
       // }
    
     }
@@ -222,58 +307,22 @@ void clearBTBuffer() {
   }
 }
 
-void loop() 
+void check_full_reset()
 {
-  //sound_board_bench();
-  switch(currentState)
+  for(int i = 0; i < 5 ; i++)
   {
-    case MENU:
-        while (Serial.available()) {
-          char c = Serial.read();
-          SerialBT.write(c);  
-          readBuffer += c;
-          checkCommand();
-        }
-
-        // Read and forward data from Bluetooth Serial to wired Serial
-        while (SerialBT.available()) {
-         // String message = SerialBT.readString(); // Read the received message
-        // Serial.println(message); // Print the received message to the Serial Monitor
-          char c = SerialBT.read();
-          Serial.write(c);  
-          readBuffer += c;
-          checkCommand();
-        }
-
-        if(handle_button(0) && lastSignalTime + RESET_INTERVAL < millis())
-          offline_start();
-  
-      
-      break;
-    case PLAY:
-      playSequence();
-      checkReset();
-      break;
-    case READ:
-      readSequence();
-      checkReset();
-      break;
-    case WON:
-    setVolumeMax();
-      won();
-      break;
-    case LOST:
-      gameOver();
-      break;
-    default:
-    break;
+    if(digitalRead(buttonPins[i]) == HIGH)
+      return;
   }
-    
+  ESP.restart();
 }
+
+
 
 
 void playSequence()
 {
+  toggle_text = false;
   int interval=FAST_PACE;
   if (is_fast==false){
     interval=SLOW_PACE;
@@ -317,7 +366,7 @@ void gameOver(){
   if(currentTime > lastSignalTime + 800)
   {
     send_game_time();
-    drawSadFace();
+    //drawSadFace();
     strip.clear();
     playSongInFolder(sound_set,7);
     strip.setPixelColor(0, strip.Color(0, 255,0 ));
@@ -338,7 +387,7 @@ void won(){
   if(currentTime > lastSignalTime + 900)
   {
     send_game_time();
-    drawSmileyFace();
+    
     strip.clear();
     playSongInFolder(sound_set,6);
     strip.setPixelColor(0, strip.Color(255,0,0 ));
@@ -358,7 +407,7 @@ void wonFin(){
 
   if(currentTime > lastSignalTime + 900)
   {
-    drawSmileyFace();
+    
     strip.clear();
     playSongInFolder(sound_set,6);
     strip.setPixelColor(0, strip.Color(255,0,0 ));
@@ -392,59 +441,21 @@ void readSequence()
     {
       clearLed();
     }
-    for(int button = 1; button<5 ; button++)
-    {
-    bool res = handle_button(button);
-    if(res)
-    {
-      last_read_press = millis();
-      lightLED(button);
-      //lightLEDPressed(button);
-      if(sequence[readIndex] != button )
+    
+        for(int button = 1; button<5 ; button++)
       {
-        currentSequenceLength=1;
-        readIndex=0;
-        lastSignalTime = millis();
-        playSongInFolder(sound_set,button);
-        gameOver();
-        
+        if(button == sequence[readIndex])
+          continue;
+        read_button_method(button);
       }
-      else
-      {
-        if(readIndex < currentSequenceLength - 1){
-          playSongInFolder(sound_set,button);
-          readIndex ++;
-        }
-        else{
-          playSongInFolder(sound_set,button);
-          currentSequenceLength ++;
-          readIndex=0;
-          lastSignalTime = millis();
-          if(currentSequenceLength > MAX_GAME_SEQUENCE)
-          {
-            currentSequenceLength = 1;
-            wonFin();
-            
-          }
-          else
-          {
-            //won();
-            send_game_stage();
-            lastSignalTime = millis()+ 300;
-            fin_press_cleared = false;
-    currentState = PLAY;
-
-          }
-          
-          
-        }
-      }
-    }
-
-    }
+      //giving the intended correct button the least priority
+      read_button_method(sequence[readIndex]);
+    
+    
   }
   
 }
+
 
 void playSignal(byte index)
 {
@@ -555,59 +566,10 @@ void send_game_stage() {
 }
 
 
-// 1. Draws a smiley face
-void drawSmileyFace() {
-  matrix.clear();
-  // Eyes
-  matrix.setPoint(2, 2, true);
-  matrix.setPoint(2, 5, true);
 
-  // Mouth - smile
-  matrix.setPoint(5, 1, true);
-  matrix.setPoint(5, 6, true);
-  matrix.setPoint(6, 2, true);
-  matrix.setPoint(6, 3, true);
-  matrix.setPoint(6, 4, true);
-  matrix.setPoint(6, 5, true);
 
-  matrix.update();
-}
 
-// 2. Draws a sad face
-void drawSadFace() {
-  matrix.clear();
-  // Eyes
-  matrix.setPoint(2, 2, true);
-  matrix.setPoint(2, 5, true);
 
-  // Mouth - sad
-  matrix.setPoint(5, 1, true);
-  matrix.setPoint(5, 6, true);
-  matrix.setPoint(4, 2, true);
-  matrix.setPoint(4, 3, true);
-  matrix.setPoint(4, 4, true);
-  matrix.setPoint(4, 5, true);
-
-  matrix.update();
-}
-
-// 3. Draws a square
-void drawSquare() {
-  matrix.clear();
-  // Horizontal lines
-  for (int i = 0; i < 8; i++) {
-    matrix.setPoint(0, i, true);
-    matrix.setPoint(7, i, true);
-  }
-
-  // Vertical lines
-  for (int j = 0; j < 8; j++) {
-    matrix.setPoint(j, 0, true);
-    matrix.setPoint(j, 7, true);
-  }
-
-  matrix.update();
-}
 
 void setVolumeMax() {
   byte volumeMaxCmd[] = {0x7E, 0x03, 0x31, 0x1E, 0xEF}; // Command to set volume to max (30)
@@ -630,115 +592,26 @@ void sound_board_bench()
   
 }
 
-void displayDigit(int num, int zone) {
-  if (num < 0 || num > 9) {
-    matrix.clear(zone);
-    return;
-  }
-
-  for (int row = 0; row < 8; row++) {
-    matrix.setRow(zone, row, numberPatterns[num][row]);
-  }
-}
 
 void displayTwoDigitNumber(int num) {
   
 
-  if (num < 10) {  // If it's a single-digit number
-   // matrix.clear(0);  // Clear the left matrix
-    displayDigit(num, 1);  // Display the number on the right matrix
-  } else {
-    int leftDigit = num / 10;   // Extract tens place
-    int rightDigit = num % 10; // Extract ones place
-
-    displayDigit(leftDigit, 0); // Display left digit on left matrix
-    displayDigit(rightDigit, 1); // Display right digit on right matrix
-  }
+ // Ensure the number is between 0 and 99
+  if (num < 0) num = 0;
+  if (num > 99) num = 99;
+  
+  char buffer[3];  // Buffer to hold the converted number
+  sprintf(buffer, "%02d", num);  // Convert the integer to a string with zero padding
+  
+  parola.displayText(buffer, PA_CENTER, 0, 0, PA_PRINT, PA_NO_EFFECT);
+  parola.displayAnimate();
+  
 }
 
-void set_color_set(int set)
-{
-  switch(set)
-  {
-    case 1:
-    set_color_set_1();
-    break;
-    case 2:
-    set_color_set_2();
-    break;
-    case 3:
-    set_color_set_3();
-    break;
-    default:
-    break;
 
-  }
-}
 
-void set_color_set_1()
-{
-    first_led_colors[0] = 0;      // Blue
-    first_led_colors[1] = 0;
-    first_led_colors[2] = 255;
-    
-    second_led_colors[0] = 255;  // Yellow
-    second_led_colors[1] = 87;
-    second_led_colors[2] = 51;
-    
-    third_led_colors[0] = 255;   // Red
-    third_led_colors[1] = 0;
-    third_led_colors[2] = 0;
-    
-    fourth_led_colors[0] = 0;    // Green
-    fourth_led_colors[1] = 255;
-    fourth_led_colors[2] = 0;
-}
 
-void set_color_set_2()
-{
-    first_led_colors[0] = 239;   // Purple
-    first_led_colors[1] = 0;
-    first_led_colors[2] = 255;
-    
-    second_led_colors[0] = 255;  // Orange
-    second_led_colors[1] = 111;
-    second_led_colors[2] = 0;
-    
-    third_led_colors[0] = 255;   // Pink
-    third_led_colors[1] = 0;
-    third_led_colors[2] = 179;
-    
-    fourth_led_colors[0] = 139;  // Brown
-    fourth_led_colors[1] = 69;
-    fourth_led_colors[2] = 19;
-}
 
-void set_color_set_3()
-{
-    first_led_colors[0] = 0;     // Cyan
-    first_led_colors[1] = 255;
-    first_led_colors[2] = 247;
-    
-    second_led_colors[0] = 255;  // Red
-    second_led_colors[1] = 0;
-    second_led_colors[2] = 68;
-    
-    third_led_colors[0] = 239;   // Purple
-    third_led_colors[1] = 0;
-    third_led_colors[2] = 255;
-    
-    fourth_led_colors[0] = 255;  // Yellow
-    fourth_led_colors[1] = 87;
-    fourth_led_colors[2] = 51;
-}
-
-int next_led()
-{
-  if(is_min_buttons)
-    return random(1,4);
-  else
-    return random(1,5);
-}
 void checkReset()
 {
   if(handle_button(0))
@@ -754,11 +627,6 @@ void resetGame()
   readIndex = 0;
   currentSequenceLength = 1;
   int currentTime = millis();
-  if(!toggle_reset)
-  {
-    parola.displayText("Reset", PA_CENTER, 0, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
-  }
-  parola.displayAnimate();
   
 
   if(currentTime > lastSignalTime + 900)
@@ -778,4 +646,116 @@ void resetGame()
     currentState = MENU;
     send_game_time();
   }
+}
+
+
+
+void read_button_method(int button)
+{
+   bool res = handle_button(button);
+    if(res)
+    {
+      last_read_press = millis();
+      lightLED(button);
+      //lightLEDPressed(button);
+      if(sequence[readIndex] != button )
+      {
+        currentSequenceLength=1;
+        readIndex=0;
+        lastSignalTime = millis();
+        playSongInFolder(sound_set,button);
+        gameOver();
+        
+      }
+      else
+      {
+        if(readIndex < currentSequenceLength - 1){
+          playSongInFolder(sound_set,button);
+          readIndex ++;
+        }
+        else{
+          playSongInFolder(sound_set,button);
+          currentSequenceLength ++;
+          readIndex=0;
+          lastSignalTime = millis();
+          if(currentSequenceLength > MAX_GAME_SEQUENCE)
+          {
+            currentSequenceLength = 1;
+            wonFin();
+            
+          }
+          else
+          {
+            //won();
+            send_game_stage();
+            lastSignalTime = millis()+ 300;
+            fin_press_cleared = false;
+    currentState = PLAY;
+
+          }
+          
+          
+        }
+      }
+    }
+
+}
+
+void loop() 
+{
+  check_full_reset();
+  //sound_board_bench();
+  switch(currentState)
+  {
+    case MENU:
+        while (Serial.available()) {
+          char c = Serial.read();
+          SerialBT.write(c);  
+          readBuffer += c;
+          checkCommand();
+        }
+
+        // Read and forward data from Bluetooth Serial to wired Serial
+        while (SerialBT.available()) {
+         // String message = SerialBT.readString(); // Read the received message
+        // Serial.println(message); // Print the received message to the Serial Monitor
+          char c = SerialBT.read();
+          Serial.write(c);  
+          readBuffer += c;
+          checkCommand();
+        }
+
+        if(handle_button(0) && lastSignalTime + RESET_INTERVAL < millis())
+          offline_start();
+        if(!toggle_text)
+        {
+          parola.displayText("MENU", PA_LEFT, 100, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
+          toggle_text = true;
+        }
+          
+         if (parola.displayAnimate()) {
+          parola.displayReset();
+  }
+
+      
+      break;
+    case PLAY:
+      playSequence();
+      checkReset();
+      break;
+    case READ:
+      readSequence();
+      checkReset();
+      break;
+    case WON:
+    setVolumeMax();
+      won();
+      break;
+    case LOST:
+      gameOver();
+      break;
+    default:
+    break;
+  }
+    
 }
