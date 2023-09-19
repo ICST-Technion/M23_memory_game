@@ -1,0 +1,17 @@
+//Defines the maximum press duration that gets registered(beyond does not count)
+#define MAX_PRESS_TIME 2000
+//Number of led lights
+#define NUM_LEDS 5
+//Defines the matrix type(required for parola)
+#define HARDWARE_TYPE MD_MAX72XX::FC16_HW
+//Defines the amount of connected matrices
+#define MAX_DEVICES 2
+//Defines the limit for the longest possible sequence
+#define MAX_GAME_SEQUENCE 100
+//Defines the transitions pace for game modes
+#define SLOW_PACE 900
+#define FAST_PACE 300
+//Defines the duration a light is shown after pressing
+#define PRESS_BLINK_DURATION 400
+//Defines the duration for the transition to an "offline game"(not initiated by the flutter app)
+#define RESET_INTERVAL 400
