@@ -729,7 +729,7 @@ void loop()
           offline_start();
         if(!toggle_text)
         {
-          parola.displayText("MENU", PA_LEFT, 100, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
+          parola.displayText("STBY", PA_LEFT, 100, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
           toggle_text = true;
         }
           
