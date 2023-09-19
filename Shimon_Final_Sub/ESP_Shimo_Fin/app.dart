@@ -102,7 +102,6 @@ class _MyHomePageState extends State<MyHomePage> {
             context,
             MaterialPageRoute(builder: (context) => EnterNameScreen()),
           );
-
           if (enteredName != null) {
             Navigator.push(
               context,
@@ -216,7 +215,12 @@ class CheckScreen extends StatefulWidget {
   _CheckScreenState createState() => _CheckScreenState();
 }
 
-class _CheckScreenState extends State<CheckScreen> {
+class _CheckScreenState extends State<CheckScreen>  {
+  int? elapsedTime; // New state variable for elapsed time
+  String stage="0";
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -227,6 +231,7 @@ class _CheckScreenState extends State<CheckScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
+            Text('Current Stage: ${elapsedTime ?? 'Not available'}'), // Display elapsed time
             ElevatedButton(
               onPressed: _startGame,
               child: Text('Start Game'),
@@ -247,24 +252,116 @@ class _CheckScreenState extends State<CheckScreen> {
     );
   }
 
-  void _startGame() {
+  // void _startGame() {
+  //   if (widget.connection.isConnected) {
+  //     Uint8List data = Uint8List.fromList(utf8.encode('start_game'));
+  //     widget.connection.output.add(data);
+  //     widget.connection.output.allSent.then((_) {
+  //       print('start_game');
+  //
+  //       // String received = ascii.decode(data).trim();
+  //       // if (received.startsWith('end_game_time ')) {
+  //       //   setState(() {
+  //       //     elapsedTime = int.tryParse(received.substring(14));
+  //       //   });
+  //       // }
+  //     });
+  //   } else {
+  //     print('Not connected');
+  //   }
+  // }
+
+  void _startGame()  {
+    String stage= "";
     if (widget.connection.isConnected) {
       Uint8List data = Uint8List.fromList(utf8.encode('start_game'));
       widget.connection.output.add(data);
       widget.connection.output.allSent.then((_) {
         print('start_game');
       });
+
+
+      // Listen for incoming data
+      widget.connection.input?.listen((Uint8List receivedData) {
+        String received = utf8.decode(receivedData).trim();
+
+        if (received.startsWith('game_stage ')) {
+          setState(() {
+            stage = received.substring(11);
+            elapsedTime = int.tryParse(received.substring(11));
+            //stage = elapsedTime as String;
+            if (elapsedTime != null) {
+              // Process the elapsedTime as needed
+              print('Received game stage: $elapsedTime');
+            }
+          });
+        }
+        if (received.startsWith('reset') || received.startsWith('end_game_time')) {
+          setState(()  {
+            if (elapsedTime != null) {
+              // Process the elapsedTime as needed
+              print('Received game stage: $elapsedTime');
+
+            if (received.startsWith('end_game_time')){
+              updateTable(stage);
+            }
+              elapsedTime = 0;
+              stage="0";
+
+
+/*          final gsheets= GSheets(_credentials);
+            final ss = await gsheets.spreadsheet(_spreadsheetId);
+            var sheet = ss.worksheetByTitle("sheet1");
+            await sheet!.values.insertValue( int.tryParse(received.substring(11)) as Object, column: 2, row: 3);
+            await sheet!.values.insertValue( widget.userName, column: 1, row: 3);*/
+
+            }
+          });
+        }
+        if (received.startsWith('hard_reset')){
+          stage="0";
+          elapsedTime=0;
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => MyHomePage()),
+          );
+        }
+      });
     } else {
       print('Not connected');
     }
   }
 
-  void _showTopScores() async{
-    final gsheets = GSheets(_credentials);
+  Future<void> updateTable(String stage)
+  async {
+    final gsheets= GSheets(_credentials);
     final ss = await gsheets.spreadsheet(_spreadsheetId);
     var sheet = ss.worksheetByTitle("sheet1");
-    await sheet!.values.insertValue("ddd", column: 1, row: 9);
-    var scores = await sheet!.values.allRows();
+    List<String> new_row = [widget.userName, stage];
+    await sheet!.values.appendRow(new_row);
+    //await sheet!.values.insertValue( widget.userName, column: 1, row: 4);
+    //await sheet!.values.insertValue( stage, column: 2, row: 4);
+
+
+  }
+
+
+
+  void _showTopScores() async{
+    final gsheets= GSheets(_credentials);
+    final ss = await gsheets.spreadsheet(_spreadsheetId);
+    var sheet = ss.worksheetByTitle("sheet1");
+    var scores_all = await sheet!.values.allRows();
+    scores_all.sort((a, b) => int.parse(b[1]).compareTo(int.parse(a[1])));
+    List<List<dynamic>> scores = [];
+
+    // Add the first 10 couples of scores to the "shahar" list
+    for (int i = 0; i < 10 && i < scores_all.length; i++) {
+      scores.add(scores_all[i]);
+    }
+
+
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => TopScoresScreen(scores: scores)),
@@ -442,6 +539,8 @@ class _CheckScreenState extends State<CheckScreen> {
     }
   }
 }
+
+
 
 // class TopScoresScreen extends StatelessWidget {
 //   @override
