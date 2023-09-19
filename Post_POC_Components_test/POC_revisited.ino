@@ -16,7 +16,9 @@
 #define MAX_DEVICES 2
 #define MAX_GAME_SEQUENCE 100
 #define SLOW_PACE 900
-#define FAST_PACE 600
+#define FAST_PACE 700
+#define PRESS_BLINK_DURATION 400
+#define RESET_INTERVAL 400
 /******************************************************************
 ------------------------Pin Layout Section-------------------------
 *******************************************************************/
@@ -87,6 +89,9 @@ bool previousButtonState = HIGH; // will store last time button was updated
 unsigned int buttonPress_counters [] = { 0 , 0 ,0,0,0}; //number of presses
 unsigned long buttonPress_last_times [] = { 0 , 0 ,0,0,0};   // last time button was pressed
 unsigned long last_press_duration= 0; //to allow accessing last press duration as global
+unsigned long last_read_press = 0;
+bool fin_press_cleared = false;
+bool toggle_reset = false;
 int lastSignalTime = 0;
 int playIndex = 0;
 int readIndex = 0;
@@ -121,88 +126,158 @@ void setup() {
   for (int i = 0; i < NUM_LEDS; i++) {
     pinMode(buttonPins[i], INPUT_PULLUP);
   }
+
+  set_color_set(1);
 }
 
 void offline_start()
 {
   unsigned long currentTime = millis();  // Correct the type for millis()
-  if(currentTime > lastSignalTime + 900)
+  if(currentTime > lastSignalTime + FAST_PACE)
   {
       currentState = PLAY;
       startTime = millis();
   }
 }
-void checkCommand() {
- unsigned long currentTime = millis();
-    
-    if(currentTime > lastSignalTime + 900) {
-        lastSignalTime = currentTime;
-        
-        // If the buffer is too long, trim it.
-        if (readBuffer.length() > 100) {
-            readBuffer = readBuffer.substring(readBuffer.length() - 100);
-        }
-        
-        // Check if buffer contains the command "start_game_"
-        int commandIndex = readBuffer.indexOf("start_game_");
-        
-        if (commandIndex != -1) {
-            // Extract the command from the buffer
-            String command = readBuffer.substring(commandIndex);
-            
-            // Tokenize the command using underscore as a delimiter
-            int numTokens = 5;  // "start_game", A, B, C, D
-            String tokens[numTokens];
-            
-            for (int i = 0; i < numTokens; i++) {
-                int underscoreIndex = command.indexOf('_');
-                
-                if (underscoreIndex != -1) {
-                    tokens[i] = command.substring(0, underscoreIndex);
-                    command = command.substring(underscoreIndex + 1);
-                } else {
-                    tokens[i] = command;
-                }
-            }
 
-            // Evaluate the tokens
-            if (tokens[1] == "fast_mode") {
-                is_fast = true;
-            } else if (tokens[1] == "slow_mode") {
-                is_fast = false;
-            }
+void setSettings(){
+      // If the buffer is too long, trim it.
+  // if (SerialBT.available()) { // Check if there is data available to read from Bluetooth
+  //   String message = SerialBT.readString(); // Read the received message
+  //   Serial.println(message); // Print the received message to the Serial Monitor
+  // }
+if (readBuffer.indexOf("fast_mode") != -1){
+  drawSmileyFace();
 
-            if (tokens[2] == "3_lights") {
-                is_min_buttons = true;
-            } else if (tokens[2] == "4_lights") {
-                is_min_buttons = false;
-            }
-
-            if (tokens[3] == "sound_set_1") {
-                sound_set = 1;
-            } else if (tokens[3] == "sound_set_2") {
-                sound_set = 2;
-            } else if (tokens[3] == "sound_set_const") {
-                sound_set = 3;
-            }
-
-            if (tokens[4] == "color_set_1") {
-                color_set = 1;
-            } else if (tokens[4] == "color_set_2") {
-                color_set = 2;
-            } else if (tokens[4] == "color_set_3") {
-                color_set = 3;
-            }
-
-            // Clear the buffer to avoid re-processing
-            readBuffer = "";
-            clearBTBuffer();
-
-            currentState = PLAY;
-            startTime = millis();
-        }
-    }
 }
+
+  // if (readBuffer.length() > 100) {
+  //       readBuffer = readBuffer.substring(readBuffer.length() - 100);
+  //   }
+
+    // if (readBuffer.substring(2,3).equals("4")){
+    //   //drawSmileyFace();
+    // }
+
+    // if (message.substring(1,2).equals("S")){
+    //   is_fast = false;
+    // }
+    // if (readBuffer.substring(2,3).equals("3")){
+    //   is_min_buttons = true;
+    // }
+    // if (readBuffer.substring(2,3).equals("4")){
+    //   is_min_buttons = false;
+    // }
+    // if (readBuffer.substring(3,4).equals("1")){
+    //     sound_set = 1;
+    // }
+    // if (readBuffer.substring(3,4).equals("2")){
+    //     sound_set = 2;
+    // }
+    // if (readBuffer.substring(3,4).equals("3")){
+    //     sound_set = 3;
+    // }   
+    // if (readBuffer.substring(4,5).equals("1")){
+    //     color_set = 1;
+    // }
+    // else if (readBuffer.substring(4,5).equals("2")){
+    //     color_set = 2;
+    // }
+    // else if (readBuffer.substring(4,5).equals("3")){
+    //     color_set = 3;
+    // }     
+    /**
+    if (readBuffer.compareTo("#F412!")){
+      drawSadFace();
+    }**/
+
+    //displayTwoDigitNumber(color_set);
+    set_color_set(color_set);
+
+    // Clear the buffer to avoid re-processing
+    readBuffer = "";
+    clearBTBuffer();
+    
+
+}
+
+
+
+void startGame() {
+      readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
+      clearBTBuffer();  // Flush the hardware buffer to make sure no extra characters are left
+      currentState = PLAY;
+      startTime = millis();
+}
+void checkCommand() {
+  unsigned long currentTime = millis();  // Correct the type for millis()
+  if(currentTime > lastSignalTime + 900)
+  {
+    // ... Your existing code for populating readBuffer ...
+
+    if (readBuffer.length() > 100) {  // Trim the buffer if it gets too long.
+      readBuffer = readBuffer.substring(readBuffer.length() - 100);
+    }
+
+    if (readBuffer.indexOf("start_game") != -1) {  // If "start_game" is found in the buffer...
+      readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
+      clearBTBuffer();  // Flush the hardware buffer to make sure no extra characters are left
+      currentState = PLAY;
+      startTime = millis();
+    }
+
+    else
+    {
+      String message =readBuffer;
+      //readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
+      //clearBTBuffer();  // Read the received message
+      if (message.indexOf("slow_mode") != -1){
+          is_fast = false;
+          //drawSmileyFace();
+      }
+      if (message.indexOf("fast_mode") != -1){
+          is_fast = true;
+          //drawSadFace();
+      }
+      if (message.indexOf("3_lights") != -1){
+          is_min_buttons = true;
+          //drawSmileyFace();
+      }
+      if (message.indexOf("4_lights") != -1){
+          is_min_buttons = false;
+          // readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
+          // clearBTBuffer();
+          //drawSadFace();
+      }
+      if (message.indexOf("color_set_1") != -1){
+          color_set = 1;
+          readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
+          clearBTBuffer();
+      }
+      if (message.indexOf("color_set_2") != -1){
+          color_set = 2;
+          readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
+          clearBTBuffer();
+      }
+      if (message.indexOf("color_set_3") != -1){
+          color_set = 3;
+          readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
+          clearBTBuffer();
+      }
+      displayTwoDigitNumber(color_set);
+      set_color_set(color_set);
+      // if(color_set == 3){
+      //   drawSadFace();
+      // }
+      // if(color_set == 2){
+      //   drawSmileyFace();
+      // }
+   
+    }
+  }
+}
+
+
 
 void clearBTBuffer() {
   while (SerialBT.available() > 0) {
@@ -225,22 +300,26 @@ void loop()
 
         // Read and forward data from Bluetooth Serial to wired Serial
         while (SerialBT.available()) {
+         // String message = SerialBT.readString(); // Read the received message
+        // Serial.println(message); // Print the received message to the Serial Monitor
           char c = SerialBT.read();
           Serial.write(c);  
           readBuffer += c;
           checkCommand();
         }
 
-        if(handle_button(0))
+        if(handle_button(0) && lastSignalTime + RESET_INTERVAL < millis())
           offline_start();
   
       
       break;
     case PLAY:
       playSequence();
+      checkReset();
       break;
     case READ:
       readSequence();
+      checkReset();
       break;
     case WON:
     setVolumeMax();
@@ -258,7 +337,18 @@ void loop()
 
 void playSequence()
 {
-  if(millis() > lastSignalTime +700)
+  int interval=FAST_PACE;
+  if (is_fast==false){
+    interval=SLOW_PACE;
+  }
+
+  if(last_read_press + PRESS_BLINK_DURATION < millis() && !fin_press_cleared)
+  {
+    fin_press_cleared = true;
+    clearLed();
+  }
+    
+  if(millis() > lastSignalTime + interval)
   {
     
       displayTwoDigitNumber(currentSequenceLength-1);
@@ -361,11 +451,16 @@ void readSequence()
   int currentTime = millis();
   if(currentTime > lastSignalTime + 500)
   {
-    for(int button = 0; button<5 ; button++)
+    if(last_read_press + PRESS_BLINK_DURATION < currentTime)
+    {
+      clearLed();
+    }
+    for(int button = 1; button<5 ; button++)
     {
     bool res = handle_button(button);
     if(res)
     {
+      last_read_press = millis();
       lightLED(button);
       //lightLEDPressed(button);
       if(sequence[readIndex] != button )
@@ -399,6 +494,7 @@ void readSequence()
             //won();
             send_game_stage();
             lastSignalTime = millis()+ 300;
+            fin_press_cleared = false;
     currentState = PLAY;
 
           }
@@ -460,26 +556,31 @@ void success() {
   strip.show();
 }
 
-bool handle_button(byte button_index) { //handle a button
-  bool previousButtonState = previousButtonStates[button_index];
-  bool currentButtonState = digitalRead(buttonPins[button_index]);  // check button state's change
+bool handle_button(uint8_t button_index) {
+    bool previousButtonState = previousButtonStates[button_index];
+    bool currentButtonState = digitalRead(buttonPins[button_index]);
 
-  if (currentButtonState != previousButtonState)  //if change is detected
-  {
-    previousButtonStates[button_index] = currentButtonState;       // save the last state of button
-    if (currentButtonState == LOW && previousButtonState == HIGH)  //type of change - from released to pressed
+    if (currentButtonState != previousButtonState)  //if change is detected
     {
-      buttonPress_last_times[button_index] = millis();
-    } else {
-      last_press_duration = millis() - buttonPress_last_times[button_index];
-      if (last_press_duration > MIN_PRESS_TIME) {
-        buttonPress_counters[button_index] = buttonPress_counters[button_index] + 1;
-        return (true); 
-      }
+        previousButtonStates[button_index] = currentButtonState;
+
+        if (currentButtonState == LOW && previousButtonState == HIGH)  //type of change - from released to pressed
+        {
+            buttonPress_last_times[button_index] = millis();
+        }
+        else {
+            unsigned long last_press_duration = millis() - buttonPress_last_times[button_index];
+
+            // Check for a valid button press duration between MIN and MAX times
+            if (last_press_duration > MIN_PRESS_TIME && last_press_duration < MAX_PRESS_TIME) {
+                buttonPress_counters[button_index] = buttonPress_counters[button_index] + 1;
+                return (true);
+            }
+        }
     }
-  }
-  return (false);
+    return (false);
 }
+
 void stopSong() {
   byte command[] = {0x7E, 0x02, 0x16, 0xEF};
   mp3Serial.write(command, sizeof(command));  // Send the stop command to the MP3 board
@@ -607,7 +708,7 @@ void displayTwoDigitNumber(int num) {
   
 
   if (num < 10) {  // If it's a single-digit number
-    matrix.clear(0);  // Clear the left matrix
+   // matrix.clear(0);  // Clear the left matrix
     displayDigit(num, 1);  // Display the number on the right matrix
   } else {
     int leftDigit = num / 10;   // Extract tens place
@@ -618,6 +719,82 @@ void displayTwoDigitNumber(int num) {
   }
 }
 
+void set_color_set(int set)
+{
+  switch(set)
+  {
+    case 1:
+    set_color_set_1();
+    break;
+    case 2:
+    set_color_set_2();
+    break;
+    case 3:
+    set_color_set_3();
+    break;
+    default:
+    break;
+
+  }
+}
+
+void set_color_set_1()
+{
+    first_led_colors[0] = 0;      // Blue
+    first_led_colors[1] = 0;
+    first_led_colors[2] = 255;
+    
+    second_led_colors[0] = 255;  // Yellow
+    second_led_colors[1] = 87;
+    second_led_colors[2] = 51;
+    
+    third_led_colors[0] = 255;   // Red
+    third_led_colors[1] = 0;
+    third_led_colors[2] = 0;
+    
+    fourth_led_colors[0] = 0;    // Green
+    fourth_led_colors[1] = 255;
+    fourth_led_colors[2] = 0;
+}
+
+void set_color_set_2()
+{
+    first_led_colors[0] = 239;   // Purple
+    first_led_colors[1] = 0;
+    first_led_colors[2] = 255;
+    
+    second_led_colors[0] = 255;  // Orange
+    second_led_colors[1] = 111;
+    second_led_colors[2] = 0;
+    
+    third_led_colors[0] = 255;   // Pink
+    third_led_colors[1] = 0;
+    third_led_colors[2] = 179;
+    
+    fourth_led_colors[0] = 139;  // Brown
+    fourth_led_colors[1] = 69;
+    fourth_led_colors[2] = 19;
+}
+
+void set_color_set_3()
+{
+    first_led_colors[0] = 0;     // Cyan
+    first_led_colors[1] = 255;
+    first_led_colors[2] = 247;
+    
+    second_led_colors[0] = 255;  // Red
+    second_led_colors[1] = 0;
+    second_led_colors[2] = 68;
+    
+    third_led_colors[0] = 239;   // Purple
+    third_led_colors[1] = 0;
+    third_led_colors[2] = 255;
+    
+    fourth_led_colors[0] = 255;  // Yellow
+    fourth_led_colors[1] = 87;
+    fourth_led_colors[2] = 51;
+}
+
 int next_led()
 {
   if(is_min_buttons)
@@ -625,4 +802,43 @@ int next_led()
   else
     return random(1,5);
 }
+void checkReset()
+{
+  if(handle_button(0))
+  {
+    lastSignalTime = millis();
+    resetGame();
+  }
+}
+void resetGame()
+{
+  currentState = MENU;
+  playIndex = 0;
+  readIndex = 0;
+  currentSequenceLength = 1;
+  int currentTime = millis();
+  if(!toggle_reset)
+  {
+    parola.displayText("Reset", PA_CENTER, 0, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
+  }
+  parola.displayAnimate();
+  
 
+  if(currentTime > lastSignalTime + 900)
+  {
+
+    strip.clear();
+    playSongInFolder(sound_set,6);
+    strip.setPixelColor(0, strip.Color(0,0,255));
+    strip.setPixelColor(1, strip.Color(0,0,255));
+    strip.setPixelColor(2, strip.Color(0,0,255));
+    strip.setPixelColor(3, strip.Color(0,0,255));
+    strip.setPixelColor(4, strip.Color(0,0,255));
+    strip.show();
+    lastSignalTime = millis()+ 300;
+    readBuffer = "";
+    clearBTBuffer();
+    currentState = MENU;
+    send_game_time();
+  }
+}
