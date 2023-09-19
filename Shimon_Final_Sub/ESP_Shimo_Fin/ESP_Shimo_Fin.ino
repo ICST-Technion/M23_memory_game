@@ -663,7 +663,15 @@ void resetGame()
 void read_button_method(int button)
 {
    bool res = handle_button(button);
-    if(res)
+   if(check_multiple_buttons_pressed())
+   {
+        currentSequenceLength=1;
+        readIndex=0;
+        lastSignalTime = millis();
+        playSongInFolder(sound_set,button);
+        gameOver();
+   }
+    else if(res)
     {
       last_read_press = millis();
       lightLED(button);
@@ -700,7 +708,7 @@ void read_button_method(int button)
             send_game_stage();
             lastSignalTime = millis()+ 300;
             fin_press_cleared = false;
-    currentState = PLAY;
+            currentState = PLAY;
 
           }
           
@@ -709,6 +717,25 @@ void read_button_method(int button)
       }
     }
 
+}
+
+bool check_multiple_buttons_pressed()
+{
+  int count = 0;
+  if(digitalRead(buttonPins[0]) == LOW)
+  {
+    return false;
+  }
+
+  for(int button = 1 ; button < 5; button ++)
+  {
+    if(digitalRead(buttonPins[button]) == LOW)
+      count++;
+  }
+  if(count > 1)
+    return true;
+
+  return false;
 }
 
 void loop() 
