@@ -15,8 +15,8 @@
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 2
 #define MAX_GAME_SEQUENCE 100
-#define SLOW_PACE 1000
-#define FAST_PACE 400
+#define SLOW_PACE 900
+#define FAST_PACE 300
 #define PRESS_BLINK_DURATION 400
 #define RESET_INTERVAL 400
 /******************************************************************
@@ -108,7 +108,7 @@ bool is_fast = false; // defines easy mode (600 or 900)
 bool is_min_buttons;//(randomizer picks only 3 buttons if toggled)
 int color_set = 1;
 int first_led_colors[3] = {0,0,255}; //default is blue
-int second_led_colors[3] = {255,87,51}; //default is yellow
+int second_led_colors[3] = {255,255,0}; //default is yellow
 int third_led_colors[3] = {255,0,0}; //default is red
 int fourth_led_colors[3] = {0,255,0}; //default is green
 
@@ -128,8 +128,8 @@ void set_color_set_1()
     first_led_colors[2] = 255;
     
     second_led_colors[0] = 255;  // Yellow
-    second_led_colors[1] = 87;
-    second_led_colors[2] = 51;
+    second_led_colors[1] = 255;
+    second_led_colors[2] = 0;
     
     third_led_colors[0] = 255;   // Red
     third_led_colors[1] = 0;
@@ -142,21 +142,21 @@ void set_color_set_1()
 
 void set_color_set_2()
 {
-    first_led_colors[0] = 239;   // Purple
-    first_led_colors[1] = 0;
-    first_led_colors[2] = 255;
+    first_led_colors[0] = 179;   // Green
+    first_led_colors[1] = 214;
+    first_led_colors[2] = 11;
     
-    second_led_colors[0] = 255;  // Orange
-    second_led_colors[1] = 111;
-    second_led_colors[2] = 0;
+    second_led_colors[0] = 21;  // Cyan
+    second_led_colors[1] = 221;
+    second_led_colors[2] = 234;
     
-    third_led_colors[0] = 255;   // Pink
-    third_led_colors[1] = 0;
-    third_led_colors[2] = 179;
+    third_led_colors[0] = 159;   // Purple
+    third_led_colors[1] = 21;
+    third_led_colors[2] = 214;
     
-    fourth_led_colors[0] = 139;  // Brown
-    fourth_led_colors[1] = 69;
-    fourth_led_colors[2] = 19;
+    fourth_led_colors[0] = 247;  // Orange
+    fourth_led_colors[1] = 117;
+    fourth_led_colors[2] = 10;
 }
 
 void set_color_set_3()
@@ -265,19 +265,17 @@ void checkCommand() {
       }
       if (message.indexOf("4_lights") != -1){
           is_min_buttons = false;
-          // readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
-          // clearBTBuffer();
-          //drawSadFace();
+         
       }
       if (message.indexOf("color_set_1") != -1){
           color_set = 1;
           readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
       }
-      if (message.indexOf("color_set_2") != -1){
+       if (message.indexOf("color_set_2") != -1){
           color_set = 2;
           readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times. 
       }
-      if (message.indexOf("color_set_3") != -1){
+       if (message.indexOf("color_set_3") != -1){
           color_set = 3;
           readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
       }
@@ -286,7 +284,7 @@ void checkCommand() {
           readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
           clearBTBuffer();
       }
-      if (message.indexOf("sound_set_2") != -1){
+       if (message.indexOf("sound_set_2") != -1){
           sound_set = 2;
           readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
           clearBTBuffer();
@@ -297,7 +295,6 @@ void checkCommand() {
           clearBTBuffer();
       }
       set_color_set(color_set);
-     
    
     }
   }
@@ -318,6 +315,8 @@ void check_full_reset()
     if(digitalRead(buttonPins[i]) == HIGH)
       return;
   }
+  send_hard_reset();
+  delay(200);
   ESP.restart();
 }
 
@@ -428,12 +427,7 @@ void wonFin(){
   }
 }
 
-void lightLEDPressed(int ledNum)
-{
-  strip.clear();
-  strip.setPixelColor(ledNum, strip.Color(5, 200,160 ));
-  strip.show();
-}
+
 
 
 void readSequence()
@@ -574,6 +568,11 @@ void send_reset() {
   SerialBT.println(message);
 }
 
+void send_hard_reset() {
+  String message = "hard_reset";
+  SerialBT.println(message);
+}
+
 
 
 
@@ -636,6 +635,7 @@ void resetGame()
   readIndex = 0;
   currentSequenceLength = 1;
   send_reset();
+  clearLed();
   int currentTime = millis();
   
 
@@ -675,7 +675,6 @@ void read_button_method(int button)
     {
       last_read_press = millis();
       lightLED(button);
-      //lightLEDPressed(button);
       if(sequence[readIndex] != button )
       {
         currentSequenceLength=1;
