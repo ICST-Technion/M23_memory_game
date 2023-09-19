@@ -5,13 +5,17 @@
 אור ברודר
 
 חומרה:
-Neopixel 3 Led,
+Neopixel 5 Led Chain,
 לחצנים,
-כרטיס קול  PCM5102/A​,
 מודול נגן MP3,
 כרטיס SD - 32GB,
-רמקולים USB
+2 FC16 LED matrices
 
+ספריות וגרסאות בשימוש:
+MD_Parola 3.7.1
+Adafruit SPIFlash 4.2.0
+Adafruit NeoPixel 1.11.0
+BluetoothSerial by Henry Abrahamsen 1.0.0
 
 מבנה המוצר: 
 כלי בצורת "חמסה" עם 2 מטריצות לדים, 5 לחצנים ו5 נורות לד – לכל לחצן נורת לד ייעודית.
@@ -38,3 +42,7 @@ Neopixel 3 Led,
 זיהוי לחיצה כאשר כפתור לחוץ(מקרה בו שני כפתורים לחוצים בו זמנית תיחשב פסילה)
 לחיצה ממושכת לא תוגבל בזמן(אין אלמנט של מגבלת זמן למשחק).
 
+
+
+תרשים חיבורים:
+![image](https://github.com/dana-kasher/IOT-Project-Group-8/assets/64217068/7f37493c-47e1-4022-ac16-834714a8efaf)
