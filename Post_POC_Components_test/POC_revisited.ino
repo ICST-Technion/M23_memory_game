@@ -140,69 +140,6 @@ void offline_start()
   }
 }
 
-void setSettings(){
-      // If the buffer is too long, trim it.
-  // if (SerialBT.available()) { // Check if there is data available to read from Bluetooth
-  //   String message = SerialBT.readString(); // Read the received message
-  //   Serial.println(message); // Print the received message to the Serial Monitor
-  // }
-if (readBuffer.indexOf("fast_mode") != -1){
-  drawSmileyFace();
-
-}
-
-  // if (readBuffer.length() > 100) {
-  //       readBuffer = readBuffer.substring(readBuffer.length() - 100);
-  //   }
-
-    // if (readBuffer.substring(2,3).equals("4")){
-    //   //drawSmileyFace();
-    // }
-
-    // if (message.substring(1,2).equals("S")){
-    //   is_fast = false;
-    // }
-    // if (readBuffer.substring(2,3).equals("3")){
-    //   is_min_buttons = true;
-    // }
-    // if (readBuffer.substring(2,3).equals("4")){
-    //   is_min_buttons = false;
-    // }
-    // if (readBuffer.substring(3,4).equals("1")){
-    //     sound_set = 1;
-    // }
-    // if (readBuffer.substring(3,4).equals("2")){
-    //     sound_set = 2;
-    // }
-    // if (readBuffer.substring(3,4).equals("3")){
-    //     sound_set = 3;
-    // }   
-    // if (readBuffer.substring(4,5).equals("1")){
-    //     color_set = 1;
-    // }
-    // else if (readBuffer.substring(4,5).equals("2")){
-    //     color_set = 2;
-    // }
-    // else if (readBuffer.substring(4,5).equals("3")){
-    //     color_set = 3;
-    // }     
-    /**
-    if (readBuffer.compareTo("#F412!")){
-      drawSadFace();
-    }**/
-
-    //displayTwoDigitNumber(color_set);
-    set_color_set(color_set);
-
-    // Clear the buffer to avoid re-processing
-    readBuffer = "";
-    clearBTBuffer();
-    
-
-}
-
-
-
 void startGame() {
       readBuffer = "";  // Clear the string buffer to avoid processing the same command multiple times.
       clearBTBuffer();  // Flush the hardware buffer to make sure no extra characters are left
